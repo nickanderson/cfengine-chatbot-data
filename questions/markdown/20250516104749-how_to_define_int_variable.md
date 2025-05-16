@@ -33,9 +33,9 @@ Note: You can also use suffixes to represent larger integer values, such as:
 -   `k` = value times 1000
 -   `m` = value times 1000^2
 -   `g` = value times 1000^3
--   'K' = value times 1024
--   'M' = value times 1024^2
--   'G' = value times 1024^3
+-   `K` = value times 1024
+-   `M` = value times 1024^2
+-   `G` = value times 1024^3
 
 For example:
 
