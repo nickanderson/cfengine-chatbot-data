@@ -1,0 +1,37 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:22b0b944-3335-40c8-957c-0e6a474d1c85][Function: length()]] [[id:5da3dcf8-5ea7-41e9-92a2-23e3755ad6fd][Function: format()]] [[id:24647e3a-2af2-4460-897d-5b539bff2171][Function: eval()]] [[id:0dfced06-32c5-4cbd-80d6-9e0b99f9b953][Function: expandrange()]] [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][Function: nth()]] [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][Function: getvalues()]] :CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       6b34ea97-9f18-49e9-aa71-de2639fab5a1
+:CREATED:  [2022-12-01 Thu 12:32]
+:end:
+#+title: Example illustrating how to get a subset of n elements from a list
+
+#+begin_src cfengine3 :tangle how_to_get_a_subset_of_n_elements_from_a_list.cf :extra-opts --show-evaluated-vars=main\\. :command-in-result t
+  bundle agent __main__
+  {
+    vars:
+      "found" slist => { "too", "many", "things", "found" };
+      "found_l" int => length( found );
+      "limit" int => "2";
+      "REAL_limit" string => format( "%d", eval( "$(limit)-1", math, infix) );
+      "a" slist => expandrange( "[0-$(REAL_limit)]", 1 );
+      "n[$(a)]"
+        string => nth(found, $(a) );
+      "limited" slist => getvalues( n );
+
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+# cf-agent --no-lock --show-evaluated-vars=main\\. --file how_to_get_a_subset_of_n_elements_from_a_list.cf
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.REAL_limit                  1                                                            source=promise
+default:main.a                            {"0","1"}                                                   source=promise
+default:main.found                        {"too","many","things","found"}                             source=promise
+default:main.found_l                     4                                                            source=promise
+default:main.limit                       2                                                            source=promise
+default:main.limited                      {"too","many"}                                              source=promise
+default:main.n[0]                        too                                                          source=promise
+default:main.n[1]                        many                                                         source=promise
+#+end_example

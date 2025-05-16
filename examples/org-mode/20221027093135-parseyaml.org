@@ -1,0 +1,56 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:880e3dce-d543-4b99-bb2b-e5786ee0f8f1][Function: parseyaml()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]]  [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]  [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       08b5f559-5502-4de5-8a73-c22a4dc50d0a
+:CREATED:  [2022-10-27 Thu 09:39]
+:end:
+#+title: Example illustrating parseyaml()
+
+#+begin_src cfengine3 :tangle parseyaml.cf :extra-opts --show-evaluated-vars=main\\.
+  bundle agent __main__
+  {
+    vars:
+        "some_yaml"
+          data => parseyaml( '
+  mykey: myvalue
+  domain:
+    name: example.com
+    subdomain: asdf
+  nesting:
+    levelzero:
+      levelone: levelone');
+
+  "top_level_keys"
+        slist => getindices( some_yaml );
+  "nesting_keys"
+        slist => getindices( "some_yaml[nesting]" );
+  "nesting_levelzero_keys"
+        slist => getindices( "some_yaml[nesting][levelzero]");
+
+    reports:
+        "$(with)"
+          with => storejson( some_yaml );
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: {
+  "domain": {
+    "name": "example.com",
+    "subdomain": "asdf"
+  },
+  "mykey": "myvalue",
+  "nesting": {
+    "levelzero": {
+      "levelone": "levelone"
+    }
+  }
+}
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.nesting_keys                 {"levelzero"}                                               source=promise
+default:main.nesting_levelzero_keys       {"levelone"}                                                source=promise
+default:main.some_yaml                   {"domain":{"name":"example.com","subdomain":"asdf"},"mykey":"myvalue","nesting":{"levelzero":{"levelone":"levelone"}}} source=promise
+default:main.top_level_keys               {"mykey","domain","nesting"}                                source=promise
+#+end_example

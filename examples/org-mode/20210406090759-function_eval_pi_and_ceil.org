@@ -1,0 +1,29 @@
+:PROPERTIES:
+:CREATED:  [2021-04-06 Tue 09:09]
+:ID:       e361ce5a-3d0b-467c-a07d-1d6bad5d719a
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating function eval pi and ceil
+#+filetags: CFEngine_Example
+
+#+begin_src cfengine3 :tangle function_eval_pi_and_ceil.cf
+  bundle agent __main__
+  {
+    vars:
+      "pi" string => eval( "pi", "math", "infix");
+      "pi_rounded_up" string => eval( "ceil(pi)", "math", "infix" ); 
+    reports:
+      "pi == '$(pi)'";
+      "pi_rounded_up == '$(pi_rounded_up)'";
+  }
+#+end_src
+
+#+RESULTS:
+: R: pi == '3.141593'
+: R: pi_rounded_up == '4.000000'
+
+* References :noexport:
+:PROPERTIES:
+:ID:       a60f40ae-c990-41a3-a84d-488c1f3e4a3a
+:END:
+- [[id:24647e3a-2af2-4460-897d-5b539bff2171][function-eval()]] 

@@ -1,0 +1,47 @@
+:properties:
+:ID:       b20b72fa-0731-408d-8ab2-4f3a31314523
+:CFEngine_Functions: [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:763031aa-965b-4c99-a5e1-544efa40d7bf][Function: lsdir()]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:end:
+#+title: Example illustrating compressing files with transformer =>
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle example_illustrating_compressing_files_with_transformer.cf 
+  bundle agent __main__
+  {
+    files:
+        "/tmp/example.txt"
+          content => "Hello World";
+  
+        "/tmp/example.txt"
+          transformer => "/usr/bin/gzip $(this.promiser)";
+  
+    reports:
+        "$(with)" with => join( ",", lsdir( "/tmp", "example.*", "true" ));
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Updated content of '/tmp/example.txt' with content 'Hello World'
+:     info: Transforming '/tmp/example.txt' with '/usr/bin/gzip /tmp/example.txt'
+:     info: Transformed '/tmp/example.txt' with '/usr/bin/gzip /tmp/example.txt' 
+:     info: Transformer '/tmp/example.txt' => '/usr/bin/gzip /tmp/example.txt' seemed to work ok
+: R: /tmp/example.txt.gz
+
+* When the promiser doesn't exist
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    files:
+        "/tmp/an-absent-file.txt"
+          delete => tidy;
+  
+        "/tmp/an-absent-file.txt"
+          transformer => "/usr/bin/gzip $(this.promiser)";
+  
+    reports:
+        "$(with)" with => join( ",", lsdir( "/tmp", "an-absent.*", "true" ));
+  }
+#+end_src
+

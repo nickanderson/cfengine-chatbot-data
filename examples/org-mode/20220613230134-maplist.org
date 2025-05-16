@@ -1,0 +1,24 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:03ce2f02-a459-4aa4-ac97-5652d7332958][Function: maplist()]] 
+:ID:       290e63d2-ff8b-449e-9ff0-fed9a1a27836
+:end:
+#+title: Example illustrating maplist()
+
+#+begin_src cfengine3 :tangle maplist.cf
+  bundle agent __main__
+  {
+    vars:
+        "list" slist => { "red", "green", "blue" };
+        "labeled" slist => maplist( "color: $(this)", list );
+        
+    reports:
+        "$(labeled)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: color: red
+: R: color: green
+: R: color: blue
+

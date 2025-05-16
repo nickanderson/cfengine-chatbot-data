@@ -1,0 +1,50 @@
+:PROPERTIES:
+:ID:       334284a9-894a-4057-b1de-212dd0fdb649
+:END:
+#+title: Example illustrating accumulated()
+
+#+begin_src cfengine3 :tangle accumulated.cf 
+  bundle agent __main__
+  {
+    vars:
+        "seconds_in_year"
+          int => accumulated( 1, 0, 0, 0, 0, 0); 
+
+        "seconds_in_month"
+          int => accumulated( 0, 1, 0, 0, 0, 0); 
+
+        "seconds_in_day"
+          int => accumulated( 0, 0, 1, 0, 0, 0); 
+
+        "seconds_in_hour"
+          int => accumulated( 0, 0, 0, 1, 0, 0); 
+
+        "seconds_in_minute"
+          int => accumulated( 0, 0, 0, 0, 1, 0); 
+
+        "seconds_in_second"
+          int => accumulated( 0, 0, 0, 0, 0, 1); 
+        
+    reports:
+        "$(seconds_in_year)";
+        "$(seconds_in_month)";
+        "$(seconds_in_day)";
+        "$(seconds_in_hour)";
+        "$(seconds_in_minute)";
+        "$(seconds_in_second)";
+
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: 31536000
+: R: 2592000
+: R: 86400
+: R: 3600
+: R: 60
+: R: 1
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:3cebbbbe-2270-478d-9b90-8675bd9366bb][accumulated()]]

@@ -1,0 +1,26 @@
+:PROPERTIES:
+:ID:       57080881-7543-481e-9af9-dbfbb84ce420
+:CFEngine_Functions:[[id:5da3dcf8-5ea7-41e9-92a2-23e3755ad6fd][Function: format()]] [[id:24647e3a-2af2-4460-897d-5b539bff2171][Function: eval()]] [[id:99ddf223-d07e-450f-b6d4-5b9a5d92a7cd][Function: cf_version_between()]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating cf_version_between()
+
+#+begin_src cfengine3 :tangle cf_version_between.cf
+  bundle agent __main__
+  {
+
+    vars:
+        "minor_version_next"
+          string => format( "%d", eval( "$(sys.cf_version_minor)+1", math ) );
+
+        "minor_version_previous"
+          string => format( "%d", eval( "$(sys.cf_version_minor)-1", math ) );
+
+    reports:
+        "The current version of CFEngine ($(sys.cf_version)) is considered between 3.$(minor_version_previous).0 and 3.$(minor_version_next).0"
+          if => cf_version_between( "3.$(minor_version_previous).0", "3.$(minor_version_next).0");
+  }
+#+end_src
+
+#+RESULTS:
+: R: The current version of CFEngine (3.21.0) is considered between 3.20.0 and 3.22.0

@@ -1,0 +1,34 @@
+:PROPERTIES:
+:ID:       2d14ca33-4f55-4b61-af5a-65257f6ba81f
+:END:
+#+title: Example illustrating ago()
+
+#+begin_src cfengine3 :tangle ago.cf 
+   bundle agent __main__
+   {
+     vars:
+         "seconds_since_epoch_1_year_ago"
+           int => ago(1, 0, 0, 0, 0, 0);
+     reports:
+         "$(with)"
+           with => concat(
+                           "Today is ",
+                           strftime( localtime,  "%F", now() ),
+                           "$(const.n)",
+                           "ago(1, 0, 0, 0, 0, 0) =  ",
+                           strftime( localtime,  "%F", $(seconds_since_epoch_1_year_ago) )
+                           );
+
+   }
+#+end_src
+
+#+RESULTS:
+: R: Today is 2022-06-10
+: ago(1, 0, 0, 0, 0, 0) =  2021-06-10
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:e117ed1d-5096-4212-9199-e0b4dc04580f][strftime()]]
+- [[id:e5413221-e9bd-45e6-8024-680ee3a407bf][now()]]
+- [[id:4bfc9761-d7ed-4fa4-9f00-e5c3f9872920][ago()]]
+- [[id:b9a498ff-0f13-4195-9850-9d1b4ec7a403][concat()]]

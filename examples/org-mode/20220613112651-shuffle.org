@@ -1,0 +1,30 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:  [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:a6e578f3-76c8-464e-8866-61702903e090][Function: shuffle()]] 
+:ID:       3b4d1373-e432-4f31-ab09-61f09b54024c
+:CREATED:  [2022-06-13 Mon 11:30]
+:end:
+#+title: Example illustrating shuffle()
+
+#+begin_src cfengine3 :tangle shuffle.cf
+  bundle agent __main__
+  {
+    vars:
+        "words" slist => { "I've", "got", "a", "lovely", "bunch", "of", "coconuts" };
+  
+    reports:
+        "$(with)." with => join ( " ", words );
+        "$(with)." with => join ( " ", shuffle(words, $(words) ) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: I've got a lovely bunch of coconuts.
+: R: I've a of bunch coconuts lovely got.
+: R: got of I've a bunch lovely coconuts.
+: R: of lovely got a I've bunch coconuts.
+: R: bunch I've got of a coconuts lovely.
+: R: of a lovely I've got bunch coconuts.
+: R: a bunch of coconuts I've lovely got.
+: R: bunch a lovely got I've coconuts of.
+

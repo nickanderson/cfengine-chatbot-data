@@ -1,0 +1,32 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]] [[id:5ba052b7-941d-4257-bb73-5dafd8b74ce3][Promise type: services]] [[id:f86a532e-32cc-419a-931e-cb8f2acfbfac][Promise type: packages]] [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       6c04ab5b-87fb-40c3-95bb-bec655f8015c
+:CREATED:  [2022-11-04 Fri 10:14]
+:end:
+#+title: Example illustrating Install ntpd and configure driftfile
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both :tangle install_ntpd_and_configure_driftfile.cf
+bundle agent excercise_configure_nptd_driftfile
+{
+  vars:
+      "config[driftfile]" string => "/var/lib/ntp/drift";
+  packages:
+      "ntp" policy => "present";
+  services:
+      "ntpd" service_policy => "start";
+      "ntpd"
+        service_policy => "restart",
+        if => "ntpd_conf_repaired";
+  files:
+      "/etc/ntp.conf"
+        edit_line => set_line_based("$(this.bundle).config", # Key Values
+                                    " ",        # Separator
+                                    "\s+",      # Separator regex
+                                    ".*",       # Keys to use
+                                    "\s*#\s*"), # Ignore lines
+        classes => results("bundle", "ntpd_conf");
+}
+bundle agent __main__{methods:"excercise_configure_nptd_driftfile";}
+#+END_SRC

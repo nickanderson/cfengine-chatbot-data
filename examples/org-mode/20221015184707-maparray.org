@@ -1,0 +1,25 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:c7a0f817-3c92-4514-bf8a-9156dc45ce7d][Function: maparray()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       7f3740d6-7cc0-4335-8d27-e4ab43b8d116
+:end:
+#+title: Example illustrating maparray()
+convert a structure of key value pairs into a list, using this.k and this.v to construt each list element
+
+#+begin_src cfengine3 :tangle maparray.cf :extra-opts --show-evaluated-vars=main\\.
+  bundle agent __main__
+  {
+        vars:
+        "arr[1]" string => "one dot one";
+        "arr[2]" string => "2.2";
+
+        "s" slist => maparray( "key=$(this.k) $(this.v)", arr ) ;
+  }
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:main.arr[1]                      one dot one                                                  source=promise
+: default:main.arr[2]                      2.2                                                          source=promise
+: default:main.s                            {"key=1 one dot one","key=2 2.2"}                           source=promise

@@ -1,0 +1,151 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:9c48958f-846c-4080-97ff-a3b54d99ba5d][methods]] [[id:23504787-b597-41ff-819d-b9625f773210][files]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       1dacf4bc-f913-4c39-a025-df2af990adad
+:CREATED:  [2023-07-13 Thu 11:36]
+:end:
+#+title: Example illustrating increasing agent report level for specific promises
+
+=action= bodies can specify =log_level= (https://docs.cfengine.com/docs/3.21/reference-promise-types.html#log_level) and =report_level= (https://docs.cfengine.com/docs/3.21/reference-promise-types.html#report_level). =log_level= influences what is sent to syslog and =report_level= influences standard output. These are useful for *increasing*, not decreasing the level of output from the global default. So, if you ran ~cf-agent~ with no log level specified you could for a single promise increase it's level to inform for example, but if you run ~cf-agent --log-level inform~ you could not reduce an individual promise log level to =error=.
+
+Here is a small example to illustrate the behavior:
+
+#+name: example
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :exports both :tangle ./increasing_agent_report_level_for_specific_promises.cf :command-in-result t
+  bundle agent __main__
+  {
+      methods:
+        "init";
+        "example";
+  }
+  bundle agent init
+  {
+    files:
+      "/tmp/[1-3].txt"
+        delete => default:tidy,
+        action => default:report_level_x( "error" );
+  }
+  bundle agent example
+  {
+    files:
+      "/tmp/1.txt"
+        content => "default report level";
+
+      "/tmp/2.txt"
+        content => "promise specific inform report level",
+        action => default:report_level_x( "inform" );
+
+      "/tmp/3.txt"
+        content => "promise specific verbose report level",
+        action => default:report_level_x( "verbose" );
+
+
+    reports:
+      "/tmp/1.txt" printfile => default:cat( "$(this.promiser)" );
+      "/tmp/2.txt" printfile => default:cat( "$(this.promiser)" );
+      "/tmp/3.txt" printfile => default:cat( "$(this.promiser)" );
+
+  }
+  body action report_level_x( x )
+  {
+      report_level => "$(x)";
+  }
+#+end_src
+
+#+RESULTS: example
+#+begin_example
+# cf-agent --no-lock --file ./increasing_agent_report_level_for_specific_promises.cf
+    info: Created file '/tmp/2.txt', mode 0600
+    info: Updated file '/tmp/2.txt' with content 'promise specific inform report level'
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_SlMu4Z_25' of type "files" (pass 1)
+ verbose: P:    Promiser/affected object: '/tmp/3.txt'
+ verbose: P:    Part of bundle: example
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/methods/'example'/default/example/files/'/tmp/3.txt'[1]
+ verbose: Using literal pathtype for '/tmp/3.txt'
+ verbose: No mode was set, choose plain file default 0600
+ verbose: Additional promise info: source path '/home/nickanderson/org/roam/CFEngine/examples/cfengine3-SlMu4Z' at line 25
+    info: Created file '/tmp/3.txt', mode 0600
+ verbose: Replacing '/tmp/3.txt' with content 'promise specific verbose report level'
+ verbose: Additional promise info: source path '/home/nickanderson/org/roam/CFEngine/examples/cfengine3-SlMu4Z' at line 25
+    info: Updated file '/tmp/3.txt' with content 'promise specific verbose report level'
+ verbose: Additional promise info: source path '/home/nickanderson/org/roam/CFEngine/examples/cfengine3-SlMu4Z' at line 25
+ verbose: files promise '/tmp/3.txt' repaired
+ verbose: A: Promise REPAIRED
+ verbose: P: END files promise (/tmp/3.txt)
+R: /tmp/1.txt
+R: default report level
+R: /tmp/2.txt
+R: promise specific inform report level
+R: /tmp/3.txt
+R: promise specific verbose report level
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_SlMu4Z_25' of type "files" (pass 2)
+ verbose: P:    Promiser/affected object: '/tmp/3.txt'
+ verbose: P:    Part of bundle: example
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/methods/'example'/default/example/files/'/tmp/3.txt'[1]
+ verbose: Using literal pathtype for '/tmp/3.txt'
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_SlMu4Z_25' of type "files" (pass 3)
+ verbose: P:    Promiser/affected object: '/tmp/3.txt'
+ verbose: P:    Part of bundle: example
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/methods/'example'/default/example/files/'/tmp/3.txt'[1]
+ verbose: Using literal pathtype for '/tmp/3.txt'
+#+end_example
+
+Then, when run again with inform as the default, we can see that the file deletion still comes out as info, it's not suppressed by setting it's =report_level= to =error= because this attribute can only *increase* the verbosity.
+#+call: example() :log-level inform
+
+#+RESULTS:
+#+begin_example
+# cf-agent --no-lock --log-level inform --file ./increasing_agent_report_level_for_specific_promises.cf
+    info: Deleted file '/tmp/1.txt'
+    info: Deleted file '/tmp/2.txt'
+    info: Deleted file '/tmp/3.txt'
+    info: Created file '/tmp/1.txt', mode 0600
+    info: Updated file '/tmp/1.txt' with content 'default report level'
+    info: Created file '/tmp/2.txt', mode 0600
+    info: Updated file '/tmp/2.txt' with content 'promise specific inform report level'
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_MkYeF1_25' of type "files" (pass 1)
+ verbose: P:    Promiser/affected object: '/tmp/3.txt'
+ verbose: P:    Part of bundle: example
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/methods/'example'/default/example/files/'/tmp/3.txt'[1]
+ verbose: Using literal pathtype for '/tmp/3.txt'
+ verbose: No mode was set, choose plain file default 0600
+ verbose: Additional promise info: source path '/home/nickanderson/org/roam/CFEngine/examples/cfengine3-MkYeF1' at line 25
+    info: Created file '/tmp/3.txt', mode 0600
+ verbose: Replacing '/tmp/3.txt' with content 'promise specific verbose report level'
+ verbose: Additional promise info: source path '/home/nickanderson/org/roam/CFEngine/examples/cfengine3-MkYeF1' at line 25
+    info: Updated file '/tmp/3.txt' with content 'promise specific verbose report level'
+ verbose: Additional promise info: source path '/home/nickanderson/org/roam/CFEngine/examples/cfengine3-MkYeF1' at line 25
+ verbose: files promise '/tmp/3.txt' repaired
+ verbose: A: Promise REPAIRED
+ verbose: P: END files promise (/tmp/3.txt)
+R: /tmp/1.txt
+R: default report level
+R: /tmp/2.txt
+R: promise specific inform report level
+R: /tmp/3.txt
+R: promise specific verbose report level
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_MkYeF1_25' of type "files" (pass 2)
+ verbose: P:    Promiser/affected object: '/tmp/3.txt'
+ verbose: P:    Part of bundle: example
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/methods/'example'/default/example/files/'/tmp/3.txt'[1]
+ verbose: Using literal pathtype for '/tmp/3.txt'
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_MkYeF1_25' of type "files" (pass 3)
+ verbose: P:    Promiser/affected object: '/tmp/3.txt'
+ verbose: P:    Part of bundle: example
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/methods/'example'/default/example/files/'/tmp/3.txt'[1]
+ verbose: Using literal pathtype for '/tmp/3.txt'
+#+end_example

@@ -1,0 +1,337 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:e4c55829-ba51-4a76-811b-f9ba19de9692][Function: network_connections()]] [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]]
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       3a6a8d3c-ae70-4b0f-898d-7bd865f3c1af
+:end:
+#+title: Example illustrating network_connections()
+
+#+begin_src cfengine3 :tangle network_connections.cf
+  bundle agent __main__
+  {
+    reports:
+        "$(with)" with => storejson( network_connections());
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: {
+  "tcp": [
+    {
+      "local": {
+        "address": "127.0.0.1",
+        "port": "3306"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "127.0.0.53",
+        "port": "53"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "111"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "22"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "127.0.0.1",
+        "port": "8384"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "192.168.122.1",
+        "port": "53"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "127.0.0.1",
+        "port": "631"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    }
+  ],
+  "tcp6": [
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "111"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "22"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:100:0",
+        "port": "631"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "22000"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "1716"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "UNKNOWN"
+    }
+  ],
+  "udp": [
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "21027"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "631"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "5353"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "55264"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "44297"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "192.168.42.139",
+        "port": "56671"
+      },
+      "remote": {
+        "address": "192.168.42.1",
+        "port": "53"
+      },
+      "state": "ESTABLISHED"
+    },
+    {
+      "local": {
+        "address": "192.168.122.1",
+        "port": "53"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "127.0.0.53",
+        "port": "53"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "67"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0.0.0.0",
+        "port": "111"
+      },
+      "remote": {
+        "address": "0.0.0.0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    }
+  ],
+  "udp6": [
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "21027"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "5353"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "46345"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "22000"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "1716"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    },
+    {
+      "local": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "111"
+      },
+      "remote": {
+        "address": "0:0:0:0:0:0:0:0",
+        "port": "0"
+      },
+      "state": "CLOSE"
+    }
+  ]
+}
+#+end_example

@@ -1,0 +1,42 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:[[id:09ccbdc7-8c2c-40eb-bf21-601235cb1f2f][Function: readtcp()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       391c5a97-a890-45c8-a41f-f78391776186
+:end:
+#+title: Example illustrating readtcp()
+
+#+begin_src cfengine3 :tangle readtcp.cf :extra-opts --log-level info --show-evaluated-vars=default:main\\.
+  bundle agent __main__
+  {
+    vars:
+        "a" string => "variable";
+        #"r" string =>  readtcp( "google.com", "80", "HEAD", 1000 );
+        "r" string =>  readtcp( "192.168.56.2", "5308", "STAT /", 1000 );
+    reports:
+
+        "$(r)";
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+    info: readtcp: Error while receiving (Connection reset by peer)
+R: $(r)
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.a                           variable                                                     source=promise
+#+end_example

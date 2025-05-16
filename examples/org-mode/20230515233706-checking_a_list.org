@@ -1,0 +1,37 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:a7d4400c-c895-43c0-8e8a-7ff7462908df][some()]] [[id:3ed3e893-6b36-478a-b284-9538ecd7464f][none()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][classes]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       a0426b3f-1b74-433b-9549-d95e7b24856d
+:end:
+#+title: Example illustrating checking a list
+
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+    vars:
+      "slist" slist => { "one", "two", "three" };
+      "empty_slist"slist => { };
+
+    classes:
+      "slist_has_some_entries" expression => some(".*", slist );
+      "empty_slist_has_some_entries" expression => some(".*", empty_slist);
+      "empty_slist_has_no_entries" expression => none(".*", empty_slist);
+
+    reports:
+      slist_has_some_entries::
+        "slist has some entries";
+
+      empty_slist_has_some_entries::
+        "empty slist has some entries";
+
+      empty_slist_has_no_entries::
+        "empty slist has no entries";
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: slist has some entries
+: R: empty slist has no entries
+
+

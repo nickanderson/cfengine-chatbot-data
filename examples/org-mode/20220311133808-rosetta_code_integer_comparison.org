@@ -1,0 +1,43 @@
+:PROPERTIES:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:ID:       2a034277-e67f-4488-97cc-47510f0e98ba
+:CFEngine_Functions: [[id:f2ae3e2a-2f57-405f-a975-de2e4a38e0ea][isgreaterthan()]] [[id:20975dc3-bf18-4b67-a0f9-a0717f044102][islessthan()]] [[id:24647e3a-2af2-4460-897d-5b539bff2171][eval()]]
+:CREATED:  [2022-03-11 Fri 13:46]
+:END:
+#+title: Example illustrating Rosetta Code: Integer Comparison
+
+https://rosettacode.org/wiki/Integer_comparison
+
+Get two integers from the user.
+
+Then,   display a message if the first integer is:
+
+                      less than,
+                      equal to,   or
+                      greater than
+
+the second integer.
+
+Test the condition   for each case separately,   so that   all three comparison operators are used   in the code.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle rosetta_code_integer_comparison.cf
+  bundle agent __main__
+  {
+    vars:
+        "first_integer" int => "10";
+        "second_integer" int => "9";
+
+    reports:
+       "The first integer ($(first_integer)) is less than the second integer ($(second_integer))."
+          if => islessthan( "$(first_integer)", "$(second_integer)" );
+       "The first integer ($(first_integer)) is equal to the second integer ($(second_integer))."
+          if => eval( "$(first_integer)==$(second_integer)", "class", "infix" );
+       "The first integer ($(first_integer)) is greater than the second integer ($(second_integer))."
+          if => isgreaterthan( "$(first_integer)", "$(second_integer)" );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: The first integer (10) is greater than the second integer (9).

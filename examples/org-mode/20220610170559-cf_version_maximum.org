@@ -1,0 +1,26 @@
+:PROPERTIES:
+:ID:       d9aeff39-63ee-4d3b-acc9-308f969598f0
+:CFEngine_Functions: [[id:71bac334-c695-4268-8524-9921aaef1523][Function: cf_version_maximum()]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating cf_version_maximum()
+
+#+begin_src cfengine3 :tangle cf_version_maximum.cf
+  bundle agent __main__
+  {
+
+    reports:
+        "I am running $(sys.cf_version)";
+        "This will be printed on versions of CFEngine up to 3.20.0."
+          if => cf_version_maximum( "3.20.0" );
+
+        "This will be printed on versions of CFEngine up to 3.18.0, not on 3.18.1 or later"
+          if => cf_version_maximum( "3.18.0" );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: I am running 3.18.1
+: R: This will be printed on versions of CFEngine up to 3.20.0.
+

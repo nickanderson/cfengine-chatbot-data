@@ -1,0 +1,227 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:be2454de-2936-4d1a-b350-47ae1eb01a92][Function: bundlesmatching()]]
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]] [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]] [[id:afe3a708-4fc0-482a-bddf-5c97a0a557e4][Promise type: meta]]
+:ID:       0971669c-327d-41e9-92e2-d85ee8ddb97b
+:end:
+#+title: Example illustrating Before and After method hooks for autorun bundles
+
+# *
+* Bundles tagged with hook_methods_(before|after)=namespace:bundle
+:PROPERTIES:
+:ID:       99c28b20-8d26-4498-a01d-7e7e861ffcb4
+:END:
+
+#+begin_src cfengine3 :tangle before_and_after_method_hooks_for_autorun_bundles.cf
+  bundle agent BeforeMyAutorunBundle()
+  {
+    meta:
+        "tags" slist => { "hook_methods_before=default:MyAutorunBundle" };
+
+    reports:
+        "Hello from $(this.namespace):$(this.bundle)";
+
+  }
+  bundle agent AfterMyAutorunBundle()
+  {
+    meta:
+        "tags" slist => { "hook_methods_after=default:MyAutorunBundle" };
+
+    reports:
+        "Hello from $(this.namespace):$(this.bundle)";
+  }
+  bundle agent SomeBundleAfterMyAutorunBundle()
+  {
+    meta:
+        "tags" slist => { "hook_methods_after=default:MyAutorunBundle" };
+
+    reports:
+        "Hello from $(this.namespace):$(this.bundle)";
+  }
+  bundle agent MyAutorunBundle()
+  # @brief MyAutorunBundle ...
+  {
+    meta:
+        "tags"
+          slist => { "autorun" };
+    reports:
+        "Hello from $(this.namespace):$(this.bundle)";
+  }
+  bundle agent AnotherAutorunBundle()
+  # @brief MyAutorunBundle ...
+  {
+    meta:
+        "tags"
+          slist => { "autorun" };
+    reports:
+        "Hello from $(this.namespace):$(this.bundle)";
+  }
+
+  bundle agent autorun_discovery
+  {
+    vars:
+
+        "autorun" slist => bundlesmatching( ".*", "autorun" );
+        "hook_before[$(autorun)]" slist => bundlesmatching( ".*", "hook_methods_before=$(autorun)" );
+        "hook_after[$(autorun)]" slist => bundlesmatching( ".*", "hook_methods_after=$(autorun)" );
+  }
+  bundle agent autorun(autorun_bundle)
+  {
+    vars:
+    methods:
+
+        # Some bug affects associative arrays which necessitates running a bundle to
+        # run the before hook bundles instead of running them directly.
+
+        "Before hook: $(autorun_bundle)" usebundle => autorun_hook_before( $(autorun_bundle) );
+
+        "$(autorun_budnle)" usebundle => "$(autorun_bundle)";
+
+        "Before hook: $(autorun_bundle)" usebundle => autorun_hook_after( $(autorun_bundle) );
+
+  }
+  bundle agent autorun_hook_before(autorun_bundle)
+  {
+    methods:
+        "Before hook $(autorun_bundle)"
+          usebundle => "$(autorun_discovery.hook_before[$(autorun_bundle)])";
+  }
+  bundle agent autorun_hook_after(autorun_bundle)
+  {
+    methods:
+        "After hook $(autorun_bundle)"
+          usebundle => "$(autorun_discovery.hook_after[$(autorun_bundle)])";
+
+  }
+  bundle agent __main__
+  # @brief Drive default bundlesequence if called as policy
+  {
+    methods:
+        "Autorun Discovery..."
+          usebundle => autorun_discovery;
+
+        "Autorun Discovery..."
+          usebundle => autorun("$(autorun_discovery.autorun)");
+
+     reports:
+        "CFEngine $(sys.cf_version)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: Hello from default:AnotherAutorunBundle
+: R: Hello from default:BeforeMyAutorunBundle
+: R: Hello from default:MyAutorunBundle
+: R: Hello from default:SomeBundleAfterMyAutorunBundle
+: R: Hello from default:AfterMyAutorunBundle
+: R: CFEngine 3.21.0a.7d5cc88fb
+
+* Bundles tagged with autorun AND hook_methods_(before|after)=namespace:bundle
+
+This however, suffers from running hooked bundles both before/after but also because they are tagged autorun themselves
+
+Need to develop this further so that bundles tagged with autorun AND hook_methods_(before|after)=.* are not run with just the autorun bundles.
+
+#+begin_src cfengine3 :tangle before_and_after_method_hooks_for_autorun_bundles.cf
+      bundle agent BeforeMyAutorunBundle()
+      {
+        meta:
+            "tags" slist => { "hook_methods_before=default:MyAutorunBundle" };
+
+        reports:
+            "Hello from $(this.namespace):$(this.bundle)";
+
+      }
+      bundle agent AfterMyAutorunBundle()
+      {
+        meta:
+            "tags" slist => { "hook_methods_after=default:MyAutorunBundle" };
+
+        reports:
+            "Hello from $(this.namespace):$(this.bundle)";
+      }
+      bundle agent SomeBundleAfterMyAutorunBundle()
+      {
+        meta:
+            "tags" slist => { "autorun", "hook_methods_after=default:MyAutorunBundle" };
+
+        reports:
+            "Hello from $(this.namespace):$(this.bundle)";
+      }
+      bundle agent MyAutorunBundle()
+      # @brief MyAutorunBundle ...
+      {
+        meta:
+            "tags"
+              slist => { "autorun" };
+        reports:
+            "Hello from $(this.namespace):$(this.bundle)";
+      }
+      bundle agent AnotherAutorunBundle()
+      # @brief MyAutorunBundle ...
+      {
+        meta:
+            "tags"
+              slist => { "autorun" };
+        reports:
+            "Hello from $(this.namespace):$(this.bundle)";
+      }
+
+      bundle agent autorun_discovery
+      {
+        vars:
+
+            "autorun" slist => bundlesmatching( ".*", "autorun" );
+            "hook_before[$(autorun)]" slist => intersection( bundlesmatching( ".*", "hook_methods_before=$(autorun)" ),
+                                                             @(autorun) );
+            "hook_after[$(autorun)]" slist => intersection( bundlesmatching( ".*", "hook_methods_after=$(autorun)" ),
+                                                            @(autorun) );
+      }
+      bundle agent autorun(autorun_bundle)
+      {
+        vars:
+        methods:
+
+            # Some bug affects associative arrays which necessitates running a bundle to
+            # run the before hook bundles instead of running them directly.
+
+            "Before hook: $(autorun_bundle)" usebundle => autorun_hook_before( $(autorun_bundle) );
+
+            "$(autorun_budnle)" usebundle => "$(autorun_bundle)";
+
+            "Before hook: $(autorun_bundle)" usebundle => autorun_hook_after( $(autorun_bundle) );
+
+      }
+      bundle agent autorun_hook_before(autorun_bundle)
+      {
+        methods:
+            "Before hook $(autorun_bundle)"
+              usebundle => "$(autorun_discovery.hook_before[$(autorun_bundle)])";
+      }
+      bundle agent autorun_hook_after(autorun_bundle)
+      {
+        methods:
+            "After hook $(autorun_bundle)"
+              usebundle => "$(autorun_discovery.hook_after[$(autorun_bundle)])";
+
+      }
+      bundle agent __main__
+      # @brief Drive default bundlesequence if called as policy
+      {
+        methods:
+            "Autorun Discovery..."
+              usebundle => autorun_discovery;
+
+            "Autorun Discovery..."
+              usebundle => autorun("$(autorun_discovery.autorun)");
+
+         reports:
+            "CFEngine $(sys.cf_version)";
+      }
+#+end_src
+
+#+RESULTS:
+: R: Hello from default:AnotherAutorunBundle
+: R: Hello from default:MyAutorunBundle
+: R: Hello from default:SomeBundleAfterMyAutorunBundle
+: R: CFEngine 3.18.1

@@ -1,0 +1,39 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:4f9b79dc-b8cc-4fcf-bb74-09792aa3d9eb][Function: execresult()]]  [[id:a136eeee-4d49-4d15-afb7-0e8c1104d488][Function: strcmp()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:67e86f42-3fab-4723-b0b7-4d6cdb87b26d][Promise type: commands]]
+:ID:       d5a286af-0f8a-4816-b31a-408bbc1e54f3
+:CREATED:  [2022-10-28 Fri 09:00]
+:end:
+#+title: Example illustrating managing kde desktop settings with unprivledged policy
+
+Have [[id:580fec8c-620c-43fe-995c-c0f5e26eb97b][systemd timer setup to run user policy]], then write policy like anything else.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle managing_kde_desktop_settings_with_unprivledged_policy.cf
+  bundle agent __main__
+  {
+    vars:
+      "desired_screensaver_autolock" string => "false";
+      "current_screensaver_autolock" string => execresult( "/usr/bin/kreadconfig5 --file kscreenlockerrc --group Daemon --key Autolock", noshell );
+
+    commands:
+      "/usr/bin/kwriteconfig5"
+        arglist => {
+                   "--file",
+                     "kscreenlockerrc",
+                     "--group",
+                     "Daemon",
+                     "--key",
+                     "Autolock",
+                     "false"
+        },
+        if => strcmp( "$(current_screensaver_autolock)", "true" );
+
+
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Executing 'no timeout' ... '/usr/bin/kwriteconfig5 --file kscreenlockerrc --group Daemon --key Autolock false'
+:     info: Completed execution of '/usr/bin/kwriteconfig5 --file kscreenlockerrc --group Daemon --key Autolock false'

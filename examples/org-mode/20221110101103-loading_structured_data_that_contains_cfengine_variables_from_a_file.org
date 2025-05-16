@@ -1,0 +1,75 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:a450a1fd-d361-4d1e-85e3-7c1954313683][Function: data_expand()]] [[id:e96b1a60-51f6-4408-8827-b547f2b55d9f][Function: readjson()]] [[id:039e2bf9-f46f-4b42-a75d-cc20faa95dd6][Function: regcmp()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]  [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       3697782b-9537-439a-b53e-c0ad5a4a9238
+:CREATED:  [2022-11-10 Thu 10:32]
+:end:
+#+title: Example illustrating loading structured data that contains cfengine variables from a file
+
+When you load data from a file, it's /directly/ loaded, meaning CFEngine variables are /not/ expanded by default.
+
+Say I have some JSON data file that contains CFEngine variables ( e.g. =$(sys.workdir)= ).
+
+#+caption: loading_structured_data_that_contains_cfengine_variables_from_a_file.cf.json
+#+begin_src json :tangle loading_structured_data_that_contains_cfengine_variables_from_a_file.cf.json
+{
+  "policy_source": {
+    "meta": "$(sys.workdir)/my_org/repo/test01_config/meta/",
+    "file": "",
+    "template": "",
+    "module": "",
+    "policy": "$(sys.workdir)/my_org/repo/test01_config/policy/"
+  }
+}
+#+end_src
+
+I want to iterate over the keys of =policy_source= and print out the values that match the regular expression =.*meta.*= (e.g. =$(sys.workdir)/my_org/repo/test01_config/meta/=).
+
+In CFEngine, promises are usually skipped if they contain something that looks like an unexpanded CFEngine variable. The thought is that we don't want to start taking action when we have missing data. Perhaps that data will be available in a subsequent pass. You can use the ~data_expand()~ function to dereference CFEngine variables.
+
+#+begin_src cfengine3 :tangle loading_structured_data_that_contains_cfengine_variables_from_a_file.cf
+  bundle agent __main__
+  {
+    vars:
+
+        "json_file"
+          string => "loading_structured_data_that_contains_cfengine_variables_from_a_file.cf.json";
+
+
+        "hosts_data" data => readjson("$(json_file)");
+
+        # use data_expand() to resolve the cfengine variables inside the JSON file while loading the data.
+        "expanded_hosts_data" data => data_expand( readjson("$(json_file)") );
+
+        "l_data_types"
+          slist => { "meta","policy","file" };
+
+    reports:
+
+        # If meta matches the iterator
+        "hosts_data[policy_source][$(l_data_types)]: $(hosts_data[policy_source][$(l_data_types)])"
+          if => regcmp(".*meta.*","$(hosts_data[policy_source][$(l_data_types)])");
+
+        "expanded_hosts_data[policy_source][$(l_data_types)]: $(expanded_hosts_data[policy_source][$(l_data_types)])"
+          if => regcmp(".*meta.*","$(expanded_hosts_data[policy_source][$(l_data_types)])");
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: expanded_hosts_data[policy_source][meta]: /home/nickanderson/.cfagent/my_org/repo/test01_config/meta/
+
+Running the agent with =--log-level debug --log-=modules=all= (and redirecting to a file, since it will produce a LOT of output) we can then see that the function was skipped for having arguments that contain unresolved variables.
+
+#+begin_example
+   debug: VariableTableGet(default:this.l_data_types): string  => meta
+   debug: ExpandScalar( (null) : (null) . hosts_data[policy_source][$(l_data_types)] )  =>  hosts_data[policy_source][meta]
+   debug: VariableTableGet(hosts_data[policy_source][meta]): NOT FOUND
+   debug: VariableTableGet(hosts_data): NOT FOUND
+   debug: VariableTableGet(default:this.hosts_data[policy_source][meta]): string  => $(sys.workdir)/my_org/repo/test01_config/meta/
+   debug: ExpandScalar( (null) : (null) . $(hosts_data[policy_source][$(l_data_types)]) )  =>  $(sys.workdir)/my_org/repo/test01_config/meta/
+   debug: Skipping function evaluation for now, arguments contain unresolved variables: regcmp(".*meta.*","$(hosts_data[policy_source][$(l_data_types)])")
+   debug: Function call in class expression did not succeed
+ verbose: Skipping promise 'hosts_data[policy_source][$(l_data_types)]: $(hosts_data[policy_source][$(l_data_types)])' because constraint 'if => regcmp(".*meta.*","$(hosts_data[policy_source][$(l_data_types)])")' is not met
+#+end_example

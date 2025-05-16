@@ -1,0 +1,28 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:11a6480a-c101-4639-ab24-60279a378145][Function: getfields()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       ccddd9e0-064d-49f7-b1c5-2a071512c49c
+:end:
+#+title: Example illustrating getfields()
+
+This function is most useful when you want only the first matching line (e.g.,
+to mimic the behavior of the ~getpwnam(3)~ on the file =/etc/passwd=). If you want
+to examine all lines, use ~readstringarray()~ instead.
+
+#+begin_src cfengine3 :tangle getfields.cf :extra-opts --show-evaluated-vars=main\\.
+  bundle agent __main__
+  {
+    vars:
+      "match[.*]" int => getfields( ".*", "/etc/services", "$(const.t)", arr2 );
+      "match[.*cfe.*]" int => getfields( ".*cfe.*", "/etc/services", "$(const.t)", arr1 );
+  }
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:main.arr1[1]                     cfengine                                                     source=function,function=getfields
+: default:main.arr1[2]                     5308/tcp                                                     source=function,function=getfields
+: default:main.arr2[1]                     # Network services, Internet style                           source=function,function=getfields
+: default:main.match[.*]                   361                                                          source=promise
+: default:main.match[.*cfe.*]              1                                                            source=promise

@@ -1,0 +1,52 @@
+:PROPERTIES:
+:ID:       a6f05f39-abbb-430f-95a6-0a714ba18ba2
+:CREATED:  [2021-08-18 Wed 10:59]
+:END:
+#+title: Example illustrating mergedata can merge slists
+
+#+caption: Mergedata can merge slists
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "l1" slist => { "one", "two" };
+        "l2" slist => { "three", "four" };
+  
+        "m" data => mergedata( l1, l2 );
+  
+    reports:
+        "$(m)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: one
+: R: two
+: R: three
+: R: four
+
+It can merge lists that are values of classic array keys:
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "l1[one]" slist => { "one", "two" };
+        "l2[two]" slist => { "three", "four" };
+  
+        "m" data => mergedata( "l1[one]", "l2[two]" );
+  
+    reports:
+        "$(m)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: one
+: R: two
+: R: three
+: R: four
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:176a208f-384f-4543-aaf4-599d03cbfa5d][mergedata()]]

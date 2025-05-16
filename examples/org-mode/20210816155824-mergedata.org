@@ -1,0 +1,31 @@
+:PROPERTIES:
+:ID:       dc7df895-ff03-49e2-94ed-fc4e333472b0
+:CREATED:  [2021-08-16 Mon 16:00]
+:END:
+#+title: Example illustrating mergedata
+
+#+caption: Last one wins
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+  
+        "one" data => '{ "thing": "one", "color": "red", "stuff": [ "one", "two" ] }';
+        "two" data => '{ "color": "blue", "stuff": [ "three" ] }';
+  
+    reports:
+        "$(with)" with => storejson( mergedata( one, two ) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: {
+:   "color": "blue",
+:   "stuff": [
+:     "three"
+:   ],
+:   "thing": "one"
+: }
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

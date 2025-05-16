@@ -1,0 +1,84 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:  [[id:9e8e1d0d-76b2-4895-81a0-fdae4be4853a][Function: data_readstringarrayidx()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]] [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][Function: nth()]] [[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][Function: string_split()]] [[id:a136eeee-4d49-4d15-afb7-0e8c1104d488][Function: strcmp()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]] [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]]
+:ID:       422fe91f-774b-45a0-b3d2-cda886e29113
+:end:
+#+title: Example illustrating parsing suggestions from lynis-report.dat
+
+#+begin_src cfengine3 :tangle parsing_suggestions_from_lynis_report_dat.cf :extra-opts --show-evaluated-vars=lynis_suggestions\\.
+  bundle agent __main__
+  {
+  vars:
+        "lynis_report_dat" string => "/tmp/lynis-report.dat";
+
+  methods:
+        "Mock linus report.dat"
+          usebundle => mock_lynis_report_dat( $(lynis_report_dat) );
+
+        "Parse suggestions from lynis report"
+          usebundle => lynis_suggestions( $(lynis_report_dat) );
+
+  }
+  bundle agent mock_lynis_report_dat(file)
+  {
+        # The lynis-report.dat file format is line based. Getting it into
+        # digest able parts requires several promises.
+
+        # Example lynis-report.dat snippet
+        #  # Lynis Report
+        #  lynis_version=2.7.4
+        #  suggestion[]=BOOT-5122|Set a password on GRUB bootloader to prevent altering boot configuration (e.g. boot in single user mode without password)|-|-|
+        #  suggestion[]=FILE-6354|Check 5 files in /tmp which are older than 90 days|-|-|
+
+        # = Is the Primary key, value separator, followed by |. Since there can be
+        # multiple lines with the same key, we need to index based on the line
+        # number, which is why we are using data_readstringarrayidx().
+
+    files:
+        "$(file)"
+          content => "# Lynis Report
+  lynis_version=2.7.4
+  suggestion[]=BOOT-5122|Set a password on GRUB bootloader to prevent altering b
+  suggestion[]=FILE-6354|Check 5 files in /tmp which are older than 90 days|-|-|";
+  }
+  bundle agent lynis_suggestions(file)
+  {
+    vars:
+
+        "d"
+          if => fileexists( $(file) ),
+          data => data_readstringarrayidx( $(file),
+                                           "",
+                                           "=",
+                                           inf,
+                                           inf);
+
+        "i" slist => getindices( d );
+
+        # Generate a datastructure to contain suggestions. We extract the
+        # Suggestion ID to use as the key, and extract the description to use as
+        # the value. In order to not lose information when there are multiple
+        # suggestions with the same ID we use the index position from the original
+        # structure to make unqiue entries for each comment
+
+        "suggestion[$(with)]"
+          string => nth( string_split( "$(d[$(i)][1])", "\|", 3 ), 1 ),
+          if => strcmp( "suggestion[]", "$(d[$(i)][0])"),
+          meta => { "inventory",
+                    "attribute_name=CISOfy Lynis Suggestions",
+                    "lynis-control-id=$(with)"
+          },
+          with => nth( string_split( "$(d[$(i)][1])", "\|", 3 ), 0 );
+
+        "si" slist => getindices( suggestion );
+  }
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:lynis_suggestions.d              [["# Lynis Report"],["lynis_version","2.7.4"],["suggestion[]","BOOT-5122|Set a password on GRUB bootloader to prevent altering b"],["suggestion[]","FILE-6354|Check 5 files in /tmp which are older than 90 days|-|-|"]] source=promise
+: default:lynis_suggestions.i               {"0","1","2","3"}                                           source=promise
+: default:lynis_suggestions.si              {"FILE-6354","BOOT-5122"}                                   source=promise
+: default:lynis_suggestions.suggestion[BOOT-5122] Set a password on GRUB bootloader to prevent altering b      source=promise,inventory,attribute_name=CISOfy Lynis Suggestions,lynis-control-id=BOOT-5122
+: default:lynis_suggestions.suggestion[FILE-6354] Check 5 files in /tmp which are older than 90 days           source=promise,inventory,attribute_name=CISOfy Lynis Suggestions,lynis-control-id=FILE-6354

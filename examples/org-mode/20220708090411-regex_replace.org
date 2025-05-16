@@ -1,0 +1,34 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:ID:       f9fcb812-dea6-4ade-b187-3c7418aa6f0e
+:CFEngine_Functions: [[id:d962e93b-b713-4d3e-8837-750857dbd3cb][Function: regex_replace()]] 
+:CREATED:  [2022-07-08 Fri 09:08]
+:end:
+#+title: Example illustrating regex_replace()
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=i\\[ :tangle regex_replace.cf
+  bundle agent __main__
+  {
+    vars:
+        "splunk_forwarder_files" slist => {
+                                            "splunk-forwarder-7.0.0-manifest",
+                                            "splunk-forwarder-9.0.0-6818ac46f2ec-linux-2.6-x86_64-manifest",
+                                            "splunk-forwarder-7.1.0-manifest",
+        };
+
+      "i[$(splunk_forwarder_files)]"
+        string => "$(with)",
+        with => regex_replace( "$(splunk_forwarder_files)", "splunk-forwarder-(.*)-manifest", "\1", "" ),
+        meta => { "inventory", "attribute_name=Splunk Forwarder Versions Present" };
+
+  }
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment                                 
+: default:main.i[splunk-forwarder-7.0.0-manifest] 7.0.0                                                        source=promise,inventory,attribute_name=Splunk Forwarder Versions Present                                         
+: default:main.i[splunk-forwarder-7.1.0-manifest] 7.1.0                                                        source=promise,inventory,attribute_name=Splunk Forwarder Versions Present                                         
+: default:main.i[splunk-forwarder-9.0.0-6818ac46f2ec-linux-2.6-x86_64-manifest] 9.0.0-6818ac46f2ec-linux-2.6-x86_64                          source=promise,inventory,attribute_name=Splunk Forwarder Versions Present                                         
+
+

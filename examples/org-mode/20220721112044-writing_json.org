@@ -1,0 +1,166 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]] [[id:7a8bbdaf-e88e-4f9b-afbf-f0d7a35eddf3][Function: parsejson()]] [[id:33bfe6c2-8242-4c57-b8d9-f3d6368beca5][Function: bundlestate()]] [[id:e1d06fa2-da14-4861-b724-0a0e46c99977][Function: variablesmatching_as_data()]] [[id:176a208f-384f-4543-aaf4-599d03cbfa5d][Function: mergedata()]] [[id:7b2ad788-6a8d-4f1a-94e5-6947fd7e2431][Function: string_mustache()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:b9a498ff-0f13-4195-9850-9d1b4ec7a403][Function: concat()]]  [[id:03ce2f02-a459-4aa4-ac97-5652d7332958][Function: maplist()]] 
+:ID:       c22f230b-f3fb-4b23-a29f-b2e8ff1adbad
+:CREATED:  [2022-07-21 Thu 11:24]
+:end:
+#+title: Example illustrating writing JSON
+
+- datastate() :: Returns a data container of the current state. It's *large*, I would generally advise against using it if another option will suffice..
+- bundlestate() :: Like ~datastate()~, but returns the state of the current bundle.
+- storejson() ::  Converts a data container into a JSON string.
+- =-top-= mustache extension :: Special key representing the complete data given to the mustache templating engine.
+- =$= mustache extension :: Variable prefix that causes data to be rendered as multi-line json.
+- =%= mustache extension :: Variable prefix that causes data to be rendered as compact json.
+
+If you can construct a data container or associative array that has the structure of the json you want to write, it's quite easy.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle writing_json.cf
+  bundle agent __main__
+  {
+    methods:
+        "" usebundle => writing_json;
+  }
+  bundle agent writing_json
+  {
+    vars:
+        "sMyVar" string => "sMyVar Value";
+        "lMyVar" slist => { "lMyVar", "Values"};
+        "sMore" string => "stuff", meta => { "myTag" };
+
+        "arrMyArray[Key1][Key1Sub1]" string => "MyArrayKey1Sub1 Value";
+        "arrMyArray[Key1][Key1Sub2]" slist => { "MyArrayKey1Sub2", "Value" };
+        "arrMyArray[Key2]" string => "MyArrayKey2 Value";
+
+    files:
+        "/tmp/manually-construted-json.txt"
+          create => "true",
+          content => '{ "SomeJson": "using CFEngine variables like sMyVar ($(sMyVar))" }';
+
+        "/tmp/manually-construted-json-parsejson-storejson-formatted.txt"
+          create => "true",
+          content => storejson(parsejson( '{ "SomeJson": "using CFEngine variables like sMyVar ($(sMyVar))" }' ));
+
+        "/tmp/manually-construted-mustache-multiline-top.txt"
+          template_data =>  '{ "SomeJson": "using CFEngine variables like sMyVar ($(sMyVar))", "more": [ "things", "to", "make", "this", "long" ] }',
+          edit_template_string => '{{%-top-}}',
+          template_method => "inline_mustache";
+
+        "/tmp/manually-construted-mustache-compact.txt"
+          template_data =>  '{ "SomeJson": "using CFEngine variables like sMyVar ($(sMyVar))", "more": [ "things", "to", "make", "this", "long" ] }',
+          edit_template_string => '{{$-top-}}',
+          template_method => "inline_mustache";
+
+        "/tmp/bundlestate-vars.txt"
+          edit_template_string => '{{$-top-}}',
+          template_method => "inline_mustache",
+          template_data => bundlestate( "$(this.bundle)" );
+
+        "/tmp/variablesmatching-as-data-myTag.txt"
+          edit_template_string => '{{$-top-}}',
+          template_method => "inline_mustache",
+          template_data => variablesmatching_as_data( ".*", "myTag" );
+
+        "/tmp/associative-array-to-json.txt"
+          content => storejson( mergedata( arrMyArray ) );
+
+  }
+#+end_src
+
+Does this mean that for =slist= below  I need to use =inline_mustache= or =mergedata()=?
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+
+        "lMyVar" slist => { "one", "two"};
+
+    files:
+
+        "/tmp/manually-construted-json-parsejson-storejson-formatted.txt"
+          create => "true",
+          content => storejson(parsejson( '{ "($(with))": "true" }' )),
+          with => "$(lMyVar)";
+  }
+#+end_src
+
+The /content/ attribute sets the full content of a file.
+
+In the snippet above, you are iterating on =lMyVar=. So, I expect the file will end up only with the last element of the list as the full content.
+
+Also, the /with/ attribute must be given a string , it can't take data containers directly. So you need to get a string that is the json version of the list. It's a language, so, there are various ways it could be accomplished, but indeed, ~mergedata()~ is the first thing that comes to my mind.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+
+        "lMyVar" slist => { "one", "two"};
+
+    files:
+
+        "/tmp/content-with-storejson-mergedata-list.txt"
+          create => "true",
+          content => "$(with)",
+          with => storejson( mergedata( lMyVar ) );
+        
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Created file '/tmp/content-with-storejson-mergedata-list.txt', mode 0600
+:     info: Updated file '/tmp/content-with-storejson-mergedata-list.txt' with content '[
+:   "one",
+:   "two"
+: ]'
+
+I think it's less readable, but you could manually construct the JSON ....
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+
+        "lMyVar" slist => { "one", "two"};
+
+    files:
+
+        "/tmp/content-with-manually-constrcted-json-concat-join-maplist.txt"
+          create => "true",
+          content => "$(with)",
+          with => concat( "[", join( ", ", maplist( '"$(this)"', lMyVar) ), "]" );
+        
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Created file '/tmp/content-with-manually-constrcted-json-concat-join-maplist.txt', mode 0600
+:     info: Updated file '/tmp/content-with-manually-constrcted-json-concat-join-maplist.txt' with content '["one", "two"]'
+
+Or with mustache, this time via the ~string_mustache()~ function.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+
+        "lMyVar" slist => { "one", "two"};
+
+    files:
+
+        "/tmp/content-with-string_mustache.txt"
+          create => "true",
+          content => "$(with)",
+          with => string_mustache( "{{$-top-}}", lMyVar );
+        
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Created file '/tmp/content-with-string_mustache.txt', mode 0600
+:     info: Updated file '/tmp/content-with-string_mustache.txt' with content '["one","two"]'
+
+

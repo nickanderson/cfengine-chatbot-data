@@ -1,0 +1,59 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][methods]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       65cf07c4-1e9f-4b52-b247-53ee40fdc832
+:end:
+#+title: Example illustrating depends_on
+
+#+BEGIN_SRC cfengine3 :exports both :wrap EXAMPLE :tangle depends_on.cf
+  bundle agent main
+  {
+    methods:
+      "never" depends_on => { "never" };
+      "zero"
+        depends_on => { "one", "two" };
+      "one" handle => "one";
+      "two" handle => "two";
+  }
+
+  bundle agent one
+  {
+     reports:
+       "In $(this.bundle) I depend on nothing"
+         handle => "report_1_bundle_one";
+
+       "In $(this.bundle) I depend on report_1_bundle_two"
+         depends_on => { "report_1_bundle_two" };
+  }
+
+  bundle agent two
+  {
+     reports:
+       "In $(this.bundle) I depend on nothing"
+         handle => "report_1_bundle_two";
+
+       "In $(this.bundle) I depend on report_1_bundle_one"
+         depends_on => { "report_1_bundle_one" };
+  }
+
+  bundle agent zero
+  {
+    reports:
+      "in bundle $(this.bundle) This promise doenst depend on anything, but the bundle actuation itself might.";
+  }
+
+  bundle agent never
+  {
+    reports:
+      "in bundle $(this.bundle) This promise doenst depend on anything, but the bundle actuation itself might.";
+  }
+#+END_SRC
+
+#+RESULTS:
+#+BEGIN_EXAMPLE
+R: In one I depend on nothing
+R: In two I depend on nothing
+R: In two I depend on report_1_bundle_one
+R: in bundle zero This promise doenst depend on anything, but the bundle actuation itself might.
+#+END_EXAMPLE

@@ -1,0 +1,23 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:8f3a8e14-734a-4421-a787-ce98385c8fad][Function: escape()]]
+:CFEngine_PromiseTypes:[[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       9c8e4c55-226d-4cdb-91a6-fdaebb5569b3
+:end:
+#+title: Example illustrating escape
+
+#+begin_src cfengine3 :tangle escape.cf
+  bundle agent __main__
+  {
+    vars:
+        "string_with_special_chars"
+          string => "&$";
+
+    reports:
+        "$(with)" with => escape( $(string_with_special_chars) );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: \&\$

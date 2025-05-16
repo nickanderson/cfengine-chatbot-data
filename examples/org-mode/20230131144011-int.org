@@ -1,0 +1,23 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:[[id:11e7b5ea-3929-448a-a67f-17f43efe5082][Function: int()]]
+:CFEngine_PromiseTypes:
+:ID:       17c9092c-ad34-4312-a89b-9dbee8b6911b
+:CREATED:  [2023-01-31 Tue 14:49]
+:end:
+#+title: Example illustrating int()
+
+#+begin_src cfengine3 :tangle int.cf
+  bundle agent __main__
+  {
+    reports:
+        "$(with)"
+          with => int( eval( "1+1", math ) );
+        "$(with)"
+          with => eval( "1+1", math );
+  }
+#+end_src
+
+#+RESULTS:
+: R: 2
+: R: 2.000000

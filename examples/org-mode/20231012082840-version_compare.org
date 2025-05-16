@@ -1,0 +1,139 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:cbc7dbb8-d09c-4aef-a4a2-a558d693d7bd][version_compare()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       86d49271-84f6-4332-960c-729ab90205fd
+:CREATED:  [2023-10-12 Thu 08:30]
+:end:
+#+title: Example illustrating version_compare()
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle version_compare.cf
+  bundle agent __main__
+  {
+    vars:
+      "v1" slist => { "3.22.0", "3.22", "3.22.1", "3.22.1a123" };
+      "v2" slist => { "3.23.0", "3.23", "3.23.1", "3.22.1b123" };
+      "comparisons" slist => { "=", "==", "!=", ">", "<", ">=", "<=" };
+
+    reports:
+      "True: $(v1) $(comparisons) $(v2)" if => version_compare( "$(v1)", "$(comparisons)", "$(v2)" );
+      "False: $(v1) $(comparisons) $(v2)" unless => version_compare( "$(v1)", "$(comparisons)", "$(v2)" );
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: True: 3.22.0 != 3.23.0
+R: True: 3.22.0 != 3.23
+R: True: 3.22.0 != 3.23.1
+R: True: 3.22.0 != 3.22.1b123
+R: True: 3.22.0 < 3.23.0
+R: True: 3.22.0 < 3.23
+R: True: 3.22.0 < 3.23.1
+R: True: 3.22.0 < 3.22.1b123
+R: True: 3.22.0 <= 3.23.0
+R: True: 3.22.0 <= 3.23
+R: True: 3.22.0 <= 3.23.1
+R: True: 3.22.0 <= 3.22.1b123
+R: True: 3.22 = 3.22.1b123
+R: True: 3.22 == 3.22.1b123
+R: True: 3.22 != 3.23.0
+R: True: 3.22 != 3.23
+R: True: 3.22 != 3.23.1
+R: True: 3.22 < 3.23.0
+R: True: 3.22 < 3.23
+R: True: 3.22 < 3.23.1
+R: True: 3.22 >= 3.22.1b123
+R: True: 3.22 <= 3.23.0
+R: True: 3.22 <= 3.23
+R: True: 3.22 <= 3.23.1
+R: True: 3.22 <= 3.22.1b123
+R: True: 3.22.1 = 3.22.1b123
+R: True: 3.22.1 == 3.22.1b123
+R: True: 3.22.1 != 3.23.0
+R: True: 3.22.1 != 3.23
+R: True: 3.22.1 != 3.23.1
+R: True: 3.22.1 < 3.23.0
+R: True: 3.22.1 < 3.23
+R: True: 3.22.1 < 3.23.1
+R: True: 3.22.1 >= 3.22.1b123
+R: True: 3.22.1 <= 3.23.0
+R: True: 3.22.1 <= 3.23
+R: True: 3.22.1 <= 3.23.1
+R: True: 3.22.1 <= 3.22.1b123
+R: True: 3.22.1a123 = 3.22.1b123
+R: True: 3.22.1a123 == 3.22.1b123
+R: True: 3.22.1a123 != 3.23.0
+R: True: 3.22.1a123 != 3.23
+R: True: 3.22.1a123 != 3.23.1
+R: True: 3.22.1a123 < 3.23.0
+R: True: 3.22.1a123 < 3.23
+R: True: 3.22.1a123 < 3.23.1
+R: True: 3.22.1a123 >= 3.22.1b123
+R: True: 3.22.1a123 <= 3.23.0
+R: True: 3.22.1a123 <= 3.23
+R: True: 3.22.1a123 <= 3.23.1
+R: True: 3.22.1a123 <= 3.22.1b123
+R: False: 3.22.0 = 3.23.0
+R: False: 3.22.0 = 3.23
+R: False: 3.22.0 = 3.23.1
+R: False: 3.22.0 = 3.22.1b123
+R: False: 3.22.0 == 3.23.0
+R: False: 3.22.0 == 3.23
+R: False: 3.22.0 == 3.23.1
+R: False: 3.22.0 == 3.22.1b123
+R: False: 3.22.0 > 3.23.0
+R: False: 3.22.0 > 3.23
+R: False: 3.22.0 > 3.23.1
+R: False: 3.22.0 > 3.22.1b123
+R: False: 3.22.0 >= 3.23.0
+R: False: 3.22.0 >= 3.23
+R: False: 3.22.0 >= 3.23.1
+R: False: 3.22.0 >= 3.22.1b123
+R: False: 3.22 = 3.23.0
+R: False: 3.22 = 3.23
+R: False: 3.22 = 3.23.1
+R: False: 3.22 == 3.23.0
+R: False: 3.22 == 3.23
+R: False: 3.22 == 3.23.1
+R: False: 3.22 != 3.22.1b123
+R: False: 3.22 > 3.23.0
+R: False: 3.22 > 3.23
+R: False: 3.22 > 3.23.1
+R: False: 3.22 > 3.22.1b123
+R: False: 3.22 < 3.22.1b123
+R: False: 3.22 >= 3.23.0
+R: False: 3.22 >= 3.23
+R: False: 3.22 >= 3.23.1
+R: False: 3.22.1 = 3.23.0
+R: False: 3.22.1 = 3.23
+R: False: 3.22.1 = 3.23.1
+R: False: 3.22.1 == 3.23.0
+R: False: 3.22.1 == 3.23
+R: False: 3.22.1 == 3.23.1
+R: False: 3.22.1 != 3.22.1b123
+R: False: 3.22.1 > 3.23.0
+R: False: 3.22.1 > 3.23
+R: False: 3.22.1 > 3.23.1
+R: False: 3.22.1 > 3.22.1b123
+R: False: 3.22.1 < 3.22.1b123
+R: False: 3.22.1 >= 3.23.0
+R: False: 3.22.1 >= 3.23
+R: False: 3.22.1 >= 3.23.1
+R: False: 3.22.1a123 = 3.23.0
+R: False: 3.22.1a123 = 3.23
+R: False: 3.22.1a123 = 3.23.1
+R: False: 3.22.1a123 == 3.23.0
+R: False: 3.22.1a123 == 3.23
+R: False: 3.22.1a123 == 3.23.1
+R: False: 3.22.1a123 != 3.22.1b123
+R: False: 3.22.1a123 > 3.23.0
+R: False: 3.22.1a123 > 3.23
+R: False: 3.22.1a123 > 3.23.1
+R: False: 3.22.1a123 > 3.22.1b123
+R: False: 3.22.1a123 < 3.22.1b123
+R: False: 3.22.1a123 >= 3.23.0
+R: False: 3.22.1a123 >= 3.23
+R: False: 3.22.1a123 >= 3.23.1
+#+end_example

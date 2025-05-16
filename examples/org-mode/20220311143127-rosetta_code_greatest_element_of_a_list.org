@@ -1,0 +1,65 @@
+:PROPERTIES:
+:ID:       47b75127-72ac-49fb-b117-cf7e47ff9007
+:CREATED:  [2022-03-11 Fri 14:54]
+:END:
+#+title: Example illustrating Rosetta Code: Greatest element of a list
+
+https://rosettacode.org/wiki/Greatest_element_of_a_list
+
+Create a function that returns the maximum value in a provided set of values,
+where the number of values may not be known until run-time. 
+
+Note: CFEngine bundles are NOT functions, however they can behave in ways that look like functions.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "number_of_list_elements"
+          int => randomint( "0", 100 ),
+          unless => isvariable( "$(this.promiser)" );
+  
+        "idx"
+          slist => expandrange( "[0-$(number_of_list_elements)]", 1 ),
+          unless => isvariable( "$(this.promiser)" );
+  
+        "number[$(idx)]"
+          int => randomint( "0", "100" ),
+          unless => isvariable( "$(this.promiser)" );
+  
+        "numbers" slist => sort( getvalues( number ), int );
+  
+    methods:
+        "Get the greatest value"
+          usebundle => greatest_value( @(numbers) ),
+          useresult => "returned";
+  
+    reports:
+        "'$(returned[max])' is the largest number in $(with)"
+          with => join( ",", numbers );
+  
+  
+  }
+  bundle agent greatest_value(list_of_values)
+  {
+     reports:
+        "$(with)"
+          with => max( list_of_values, int ),
+          bundle_return_value_index => "max";
+  }      
+#+end_src
+
+#+RESULTS:
+: R: '97' is the largest number in 3,5,6,13,15,30,34,37,47,49,49,53,54,59,59,59,60,62,64,67,78,83,95,97
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][join()]]
+- [[id:4ccece52-ace5-4497-9771-76d287b299b3][max()]]
+- [[id:edde1a7e-c787-46b8-8ae1-285f12dafd90][sort()]]
+- [[id:02720c30-efe9-4bb8-b360-fbf79886a13d][isvariable()]]
+- [[id:55697680-b4c7-4e11-b545-9ce194828f1f][randomint()]]
+- [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][getvalues()]]
+- [[id:0dfced06-32c5-4cbd-80d6-9e0b99f9b953][expandrange()]]
+

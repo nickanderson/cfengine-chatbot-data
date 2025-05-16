@@ -1,0 +1,55 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:55e2ab49-5dbf-464c-a4d2-1543a805599d][Function: irange()]] [[id:4bfc9761-d7ed-4fa4-9f00-e5c3f9872920][Function: ago()]] [[id:e5413221-e9bd-45e6-8024-680ee3a407bf][Function: now()]]
+:CFEngine_PromiseTypes: [[id:67e86f42-3fab-4723-b0b7-4d6cdb87b26d][Promise type: commands]] [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]] [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]]
+:ID:       5ae75cb6-33e6-45be-955c-47a9a385415f
+:CREATED:  [2022-11-08 Tue 12:36]
+:end:
+#+title: Example illustrating deleting files based on filename, file-type, and modification time
+
+#+begin_src cfengine3 :tangle deleting_files_based_on_filename_file_type_and_modification_time.cf
+  bundle agent example_deleting_old_files
+  {
+    files:
+        "/tmp/path/to/search"
+          depth_search => recurse_with_base( "inf" ),
+          file_select => my_selection_criteria,
+          delete => tidy;
+  }
+  body file_select my_selection_criteria
+  {
+          leaf_name => { "~git\d\d.*" }; # Filenames that start with ~gitNN where N is an integer
+          mtime => irange(
+                           # Modification time between 6 months ago and agent start time aka now()
+                           ago( 0, # years
+                                6, # months
+                                0, # days
+                                0, # hours
+                                0, # minutes
+                                0),# seconds
+                           now() );
+          file_types => { "plain", "symlink" };
+
+        # File names that match, that are plain files or symlinks and not modified in the last 6 months;
+          file_result => "leaf_name.file_types.!mtime";
+  }
+
+  bundle agent init
+  {
+    commands:
+        "/bin/mkdir -p /tmp/path/to/search/very/deep";
+        "/bin/touch -t 202012101830 /tmp/path/to/search/very/~git20";
+        "/bin/touch -t 202012101830 /tmp/path/to/search/very/git20";
+        "/bin/touch -t 202012101830 /tmp/path/to/search/very/~git99";
+        "/bin/touch -t 202012101830 /tmp/path/to/search/very/deep/~git30";
+
+  }
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "example_deleting_old_files";
+  }
+#+end_src
+
+#+RESULTS:

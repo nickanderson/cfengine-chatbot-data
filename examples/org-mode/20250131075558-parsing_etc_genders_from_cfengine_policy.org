@@ -1,0 +1,117 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:72600c06-e3a9-4d48-b9ad-8756abe24442][Function: filter()]] [[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][Function: string_split()]] [[id:87c6bed4-cb2f-4a95-87c0-e53650e91909][Function: readstringlist()]] [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][Function: nth()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]]  [[id:892a5b10-082a-40cc-9e2e-67d25fdc8792][Function: classesmatching()]]
+:CFEngine_PromiseTypes: [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]] [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]  [[id:431e6692-7600-4467-a0c0-609ea7c09a17][Promise type: classes]]  [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       53a25bce-128c-49da-8cf0-baab80296426
+:CREATED:  [2025-01-31 Fri 08:04]
+:end:
+#+title: Example illustrating parsing /etc/genders from CFEngine policy
+
+[[https://github.com/chaos/genders/tree/master][Genders]] is a static cluster configuration database used for cluster configuration management. It is used by a variety of tools and scripts for management of large clusters.
+
+#+BEGIN_COMMENT
+I don't know that it's ideal to do this, but it was a bit fun to pursue so I played around with parsing /etc/genders from within policy. A function to simply parse and return a data structure would be a significant improvement.
+#+END_COMMENT
+
+A genders file looks like this:
+
+#+caption: /etc/genders
+#+begin_src conf
+  # nodename attr[=value],attr[=value]
+  nodename linux,oel7,prod,enc=10-01-r3-e1
+  precision-5570 linux,ubntu24,prod,enc=10-01-r3-e1
+#+end_src
+
+* Policy
+
+This policy defines =g_= prefixed =namespace= scoped classes for the attributes without values and defines variables for attributes with values both tagged for reporting to an Enterprise Hub but only the variables tagged for inventory.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-args --show-evaluated-vars=genders :tangle /tmp/genders.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "genders";
+  }
+  bundle agent init
+  {
+    files:
+        "$(genders.filename)"
+          content => "# nodename attr[=value],attr[=value]
+  # Some attributes are exposed to CFEngine as classes
+  # E.g. g_prod (genders production)
+  nodename linux,remote,oel7,prod,dfas, rad,oci,enc=g10-01-r3-e1
+  $(sys.uqhost) linux,remote,ubntu24,prod,dfas,rad,oci,enc=g10-01-r3-e1
+  ";
+
+  }
+
+  bundle agent genders
+  {
+    vars:
+        "filename" string => "/tmp/genders";
+
+        # I started trying to parse it in one go, but the first , separated attribte was getting combind with the nodename so abandoned
+        # "node_attrs"
+        #   if => fileexists( "$(genders.filename)" ),
+        #   data => data_readstringarray(
+        #                                 "$(genders.filename)", # filename,
+        #                                 "#[^\n]*",      # comment,
+        #                                 " ",      # split,
+        #                                 "inf",          # maxentries
+        #                                 "inf");         # maxbytes
+
+
+        # I can't seem to get a negative lookahead to work.. exclude all lines that aren't my gender line, so i read the whole file in and then filter out lines not matching the executing node
+        "my_entry"
+          slist => filter( "^$(sys.uqhost)\s+.*",
+                           readstringlist( "$($(this.bundle).filename)",
+                                           "#[^\n]*",
+                                           "\n", inf, inf ),
+                           true, false, inf );
+
+        # Then we get the list of attribute[=values]
+        "my_attrs_vals"
+          slist => string_split( nth( string_split( nth( my_entry, 0 ),
+                                                    "\s+", inf ), 1), ",", inf );
+
+        # Then we get the list of attributes that don't have  value
+        "my_attrs_noval" slist => filter( ".*=.*", my_attrs_vals, "true", "true", inf );
+
+        # Then we get the list of attributes that do have  value
+        "my_attrs_wval" slist => filter( ".*=.*", my_attrs_vals, "true", "false", inf );
+
+        # Now I make a map of attributes that have values to their values and I tag for reporting and inventory
+
+        "map_attrs_w_val[$(with)]"
+          string => nth( string_split( "$(my_attrs_wval)", "=", 2 ), 1 ),
+          meta => { "derived-from=/etc/genders",
+                    "report",
+                    "inventory",
+                    "attribute_name=/etc/genders[$(with)]" },
+          with => nth( string_split( "$(my_attrs_wval)", "=", 2 ), 0 );
+
+        "_map_attrs_w_val_list" slist => getindices( "map_attrs_w_val" );
+
+    classes:
+        "g_$(my_attrs_noval)"
+          meta => { "derived-from=/etc/genders", "report" },
+          scope => "namespace";
+
+    reports:
+        "Classes defined derived from /etc/genders: $(with)"
+          with => join( ", ", classesmatching( ".*", "derived-from=/etc/genders" ));
+
+        "$(_map_attrs_w_val_list) = $(map_attrs_w_val[$(_map_attrs_w_val_list)])";
+  }
+#+end_src
+
+#+RESULTS:
+: R: Classes defined derived from /etc/genders: g_prod, g_dfas, g_linux, g_rad, g_ubntu24, g_remote, g_oci
+: R: enc = g10-01-r3-e1
+
+
+* DONE File feature issue for function to parse /etc/genders into a data structure
+CLOSED: [2025-02-27 Thu 10:09]
+
+https://northerntech.atlassian.net/browse/CFE-4500

@@ -1,0 +1,25 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:fbfeaf19-3590-4dd6-902f-fb829894b92d][Function: mean()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       a560a329-12dc-4f39-98b7-32ee4a7d5c6a
+:CREATED:  [2022-06-13 Mon 11:16]
+:end:
+#+title: Example illustrating mean()
+
+#+begin_src cfengine3 :tangle mean.cf
+  bundle agent __main__
+  {
+    vars:
+      "numbers" slist => { 1,9,0,0,6,4,9,2,5,6,8 };
+      "mean" real => mean( @(numbers) );
+  
+    reports:
+        "The mean of the numbers '$(with)' is $(mean)"
+          with => join( ",", @(numbers) );
+  
+  }
+#+end_src
+
+#+RESULTS:
+: R: The mean of the numbers '1,9,0,0,6,4,9,2,5,6,8' is 4.545455
+

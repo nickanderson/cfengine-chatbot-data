@@ -1,0 +1,97 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][Function: string_split()]] [[id:582843be-0874-4dd8-ae2c-8a9512ca9d95][Function: not()]] [[id:02720c30-efe9-4bb8-b360-fbf79886a13d][Function: isvariable()]] [[id:4e90de3a-a792-40cf-8d83-3157d5317310][Function: filestat()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       7f850522-889a-43b6-83f9-cc5625de3510
+:CREATED:  [2022-12-14 Wed 11:01]
+:end:
+#+title: Example illustrating inventorying file stats allowing for set of file stats to be overridden
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=default:test\\. :tangle inventorying_file_stats_allowing_for_set_of_file_stats_to_be_overridden.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "test";
+  }
+  bundle agent init
+  {
+    files:
+        "/tmp/file1.txt" content => "file 1";
+        "/tmp/file2.txt" content => "file 2";
+  }
+  bundle agent test
+  {
+    vars:
+
+      any::
+
+        "file_path" slist => { "/tmp/file1.txt",
+                               "/tmp/file2.txt"};
+
+        # Define the default set of attributes to collect if the variable is not
+        # already defined with the expectation that if it's already defined,
+        # that's because it was pre-defined via Augments (def.json, or
+        # host_specific.json)
+
+        "attributes"
+          slist => string_split("size,mtime,modeoct,permsoct,gid,uid", ",", 999),
+          if => not( isvariable( "attributes" ) );
+
+        "file_info[$(file_path)][$(attributes)]"
+          string => filestat( $(file_path), $(attributes) ),
+          if => fileexists("$(file_path)");
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Variable name                            Variable value                                               Meta tags                                Comment
+default:test.attributes                   {"size","mtime","modeoct","permsoct","gid","uid"}           source=promise
+default:test.file_info[/tmp/file1.txt][gid] 1000                                                         source=promise
+default:test.file_info[/tmp/file1.txt][modeoct] 100600                                                       source=promise
+default:test.file_info[/tmp/file1.txt][mtime] 1671032449                                                   source=promise
+default:test.file_info[/tmp/file1.txt][permsoct]                                                              source=promise
+default:test.file_info[/tmp/file1.txt][size] 6                                                            source=promise
+default:test.file_info[/tmp/file1.txt][uid] 1000                                                         source=promise
+default:test.file_info[/tmp/file2.txt][gid] 1000                                                         source=promise
+default:test.file_info[/tmp/file2.txt][modeoct] 100600                                                       source=promise
+default:test.file_info[/tmp/file2.txt][mtime] 1671032449                                                   source=promise
+default:test.file_info[/tmp/file2.txt][permsoct]                                                              source=promise
+default:test.file_info[/tmp/file2.txt][size] 6                                                            source=promise
+default:test.file_info[/tmp/file2.txt][uid] 1000                                                         source=promise
+default:test.file_path                    {"/tmp/file1.txt","/tmp/file2.txt"}                         source=promise
+#+end_example
+
+And, say we have an augments file ...
+
+#+begin_src json :tangle no
+  {
+      "variables": {
+          "default:test.attributes": {
+              "value": [ "size", "modeoct" ],
+              "comment": "The file attribtues that we wish to collect instead of the defaults"
+          }
+      }
+  }
+#+end_src
+
+We can see that the list of attributes differs.
+
+#+begin_src sh :results output :exports both
+  chmod 600 /tmp/def.json /tmp/inventory-filestats.cf
+  cf-agent -Kf /tmp/inventory-filestats.cf --show-evaluated-vars=default:test\\.
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:test.attributes                   {"size","modeoct"}                                          source=augments_file                     The file attribtues that we wish to collect instead of the defaults
+: default:test.file_info[/tmp/file1.txt][modeoct] 100600                                                       source=promise
+: default:test.file_info[/tmp/file1.txt][size] 6                                                            source=promise
+: default:test.file_info[/tmp/file2.txt][modeoct] 100600                                                       source=promise
+: default:test.file_info[/tmp/file2.txt][size] 6                                                            source=promise
+: default:test.file_path                    {"/tmp/file1.txt","/tmp/file2.txt"}                         source=promise
+
+It's not clear to me exactly how useful this would be in practice. Did you plan to also have some sort of structure to try and target the list of attributes for /specific files/? That seems like it would be more useful than a global override unless of course you have multiple environments where your global settings are different, then it could make a lot of sense.
+
+[[id:41252b2d-61f6-4418-bf53-b19b3481327e][Example illustrating inventorying file stats allowing for specific files to collect different stats]]

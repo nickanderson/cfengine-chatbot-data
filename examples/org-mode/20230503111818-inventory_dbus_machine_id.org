@@ -1,0 +1,81 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:748f68b3-8a9b-4ed6-b161-96080c08e4ce][Function: readfile()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]  [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       6e1952ef-641e-4c83-a4a4-c89f7d6e49fb
+:CREATED:  [2023-05-03 Wed 11:20]
+:end:
+#+title: Example illustrating Inventory DBUS machine id
+
+#+caption: Example custom inventory for DBUS machine id
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle inventory_dbus_machine_id.cf
+  bundle agent inventory_dbus_machine_id
+  {
+    vars:
+      "dbus_machine_id_file"
+          string => "/var/lib/dbus/machine-id";
+
+        "dbus_machine_id" -> { "Compliance:1123" }
+          string => readfile( $(dbus_machine_id_file) ),
+          if => fileexists( $(dbus_machine_id_file) ),
+          meta =>  { "inventory", "attribute_name=DBUS machine id" };
+
+  }
+
+  bundle agent __main__
+  {
+    methods:
+        "inventory_dbus_machine_id";
+
+    reports:
+        "DBUS machine id: $(inventory_dbus_machine_id.dbus_machine_id)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: DBUS machine id: 05207246c07e4cb8b288f8f1d4cf01ff
+
+Here is the example adjusted to use simple caching.
+
+#+caption: Example custom inventory for DBUS machine id with caching
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent inventory_dbus_machine_id
+  {
+    vars:
+        "dbus_machine_id_file"
+          string => "/var/lib/dbus/machine-id";
+
+        "dbus_machine_id_cache"
+          string => "$(sys.statedir)/$(this.bundle).dat";
+
+        "dbus_machine_id" -> { "Compliance:1123" }
+          string => readfile( $(dbus_machine_id_cache) ),
+          if => fileexists( $(dbus_machine_id_cache) ),
+          meta =>  { "inventory", "attribute_name=DBUS machine id" };
+
+    commands:
+        "$(paths.cat) $(dbus_machine_id_file) > $(dbus_machine_id_cache)"
+          contain => default:in_shell_and_silent;
+
+    files:
+        # Let's clear the cache at least once a day (or when someone runs cf-agent without locks)
+        "$(dbus_machine_id_cache)"
+          delete => default:tidy,
+          action => default:if_elapsed_day;
+
+  }
+
+  bundle agent __main__
+  {
+    methods:
+        "inventory_dbus_machine_id";
+
+    reports:
+        "DBUS machine id: $(inventory_dbus_machine_id.dbus_machine_id)";
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Executing 'no timeout' ... '/bin/cat /var/lib/dbus/machine-id > /home/nickanderson/.cfagent/state/inventory_dbus_machine_id.dat'
+:     info: Completed execution of '/bin/cat /var/lib/dbus/machine-id > /home/nickanderson/.cfagent/state/inventory_dbus_machine_id.dat'
+: R: DBUS machine id: 05207246c07e4cb8b288f8f1d4cf01ff

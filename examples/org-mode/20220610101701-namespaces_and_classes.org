@@ -1,0 +1,154 @@
+:PROPERTIES:
+:ID:       aa646895-9f42-4716-86ad-3f09c5e9c7ee
+:CREATED:  [2022-06-10 Fri 10:25]
+:CFEngine_PromiseTypes: [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][Promise type: classes]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Namespaces and Classes
+#+filetags: :CFEngine:example:
+
+#+begin_src cfengine3 :tangle namespaces_and_classes.cf
+  bundle agent __main__
+  {
+    methods:
+        "MyNamespace:my_bundle";
+
+    reports:
+
+      a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      !a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I do not see 'a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'a_namespace_scoped_class_in_my_namespaced_bundle::'";
+
+      !a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'";
+
+      MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      !MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I do not see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'";
+  }
+
+  body file control
+  {
+        namespace => "MyNamespace";
+  }
+
+  bundle agent my_bundle
+  {
+    classes:
+        "a_bundle_scoped_class_in_my_namespaced_bundle";
+
+        "a_namespace_scoped_class_in_my_namespaced_bundle"
+          scope => "namespace";
+
+    reports:
+
+      a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      !a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I do not see 'a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'a_namespace_scoped_class_in_my_namespaced_bundle::'";
+
+      !a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'";
+
+      MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      !MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I do not see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'";
+
+      MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'";
+  }
+#+end_src
+
+#+RESULTS:
+: R: In MyNamespace:my_bundle I see 'a_bundle_scoped_class_in_my_namespaced_bundle::'
+: R: In MyNamespace:my_bundle I see 'a_namespace_scoped_class_in_my_namespaced_bundle::'
+: R: In MyNamespace:my_bundle I see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'
+: R: In MyNamespace:my_bundle I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'
+: R: In default:main I do not see 'a_bundle_scoped_class_in_my_namespaced_bundle::'
+: R: In default:main I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'
+: R: In default:main I do not see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'
+: R: In default:main I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'
+
+* Refactored to use a single bundle for reporting
+
+This version reports essentially the same information but removes the duplicated reports.
+
+It's important to remember that you must make unique promises, which is why this version emits information showing both the bundle that emited the infomation and the information about where it was called from. Without this difference, some output would be suppressed from having already been reported.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    methods:
+        "MyNamespace:my_bundle";
+        "report" usebundle => report( "$(this.namespace)", "$(this.bundle)", "called with inherit => 'false'" ), inherit => "false";
+   }
+   bundle agent report(ns, bundlename, comment)
+   {
+    reports:
+      a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I see 'a_bundle_scoped_class_in_my_namespaced_bundle::'";
+      !a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I do not see 'a_bundle_scoped_class_in_my_namespaced_bundle::'";
+      a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I see 'a_namespace_scoped_class_in_my_namespaced_bundle::'";
+      !a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'";
+      MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'";
+      !MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I do not see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'";
+      MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::
+        "In $(this.namespace):$(this.bundle) From $(ns):$(bundlename) $(comment) I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'";
+  }
+  body file control
+  {
+        namespace => "MyNamespace";
+  }
+  bundle agent my_bundle
+  {
+    classes:
+        "a_bundle_scoped_class_in_my_namespaced_bundle";
+        "a_namespace_scoped_class_in_my_namespaced_bundle"
+          scope => "namespace";
+       methods:
+        "report" usebundle => default:report( "$(this.namespace)", "$(this.bundle)", "called with inherit => 'false'" ), inherit => "false";
+        "report" usebundle => default:report( "$(this.namespace)", "$(this.bundle)", "called with inherit => 'true'" ), inherit => "true";
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: In default:report From MyNamespace:my_bundle called with inherit => 'false' I do not see 'a_bundle_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'false' I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'false' I do not see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'false' I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'true' I see 'a_bundle_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'true' I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'true' I see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From MyNamespace:my_bundle called with inherit => 'true' I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From default:main called with inherit => 'false' I do not see 'a_bundle_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From default:main called with inherit => 'false' I do not see 'a_namespace_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From default:main called with inherit => 'false' I do not see 'MyNamespace:a_bundle_scoped_class_in_my_namespaced_bundle::'
+R: In default:report From default:main called with inherit => 'false' I see 'MyNamespace:a_namespace_scoped_class_in_my_namespaced_bundle::'
+#+end_example
+
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

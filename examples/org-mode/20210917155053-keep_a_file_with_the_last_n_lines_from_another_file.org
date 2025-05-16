@@ -1,0 +1,41 @@
+:PROPERTIES:
+:ID:       619b1411-e1f4-44b3-a4ae-ba51e5962658
+:CREATED:  [2021-09-17 Fri 15:52]
+:END:
+#+title: Example illustrating Keep a file with the last n lines from another file
+
+The equivalent of ~tail -n 5 /var/log/messages > /var/cfengine/state/last-5-lines-of-var-log-messages~. This is a pattern that could be useful for inventorying the latest info from a log file.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    files:
+        "$(sys.statedir)/last-n-lines-of-var-log-syslog"
+          with => execresult( "tail -n 5 /var/log/syslog", useshell ),
+          content => "$(with)";
+    reports:
+        "$(sys.statedir)/last-n-lines-of-var-log-syslog"
+          printfile => cat( $(this.promiser) );
+  
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+    info: Updated content of '/home/nickanderson/.cfagent/state/last-n-lines-of-var-log-syslog' with content 'Sep 17 15:31:12 nickanderson-legion-7-16achg6 systemd[2637]: net-freenas-mnt-Pool0-share.mount: Succeeded.
+Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.800135] nfs: Deprecated parameter 'intr'
+Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.800901] nfs: Deprecated parameter 'intr'
+Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.801836] nfs: Deprecated parameter 'intr'
+Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.804982] nfs: Deprecated parameter 'intr''
+R: /home/nickanderson/.cfagent/state/last-n-lines-of-var-log-syslog
+R: Sep 17 15:31:12 nickanderson-legion-7-16achg6 systemd[2637]: net-freenas-mnt-Pool0-share.mount: Succeeded.
+R: Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.800135] nfs: Deprecated parameter 'intr'
+R: Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.800901] nfs: Deprecated parameter 'intr'
+R: Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.801836] nfs: Deprecated parameter 'intr'
+R: Sep 17 15:31:12 nickanderson-legion-7-16achg6 kernel: [412891.804982] nfs: Deprecated parameter 'intr'
+#+end_example
+
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

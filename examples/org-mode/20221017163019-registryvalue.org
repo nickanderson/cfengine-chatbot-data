@@ -1,0 +1,54 @@
+:PROPERTIES:
+:CREATED:  [2022-10-17 Mon 16:53]
+:ID:       31bd6eec-d3b7-47d2-850d-15439d078870
+:END:
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:03a1661f-cdec-4577-9672-647bce3f164e][Function: registryvalue()]] [[id:582843be-0874-4dd8-ae2c-8a9512ca9d95][Function: not()]] [[id:02e9257f-46c0-4cac-a304-08b54b3f24d2][Function: returnszero()]] [[id:02720c30-efe9-4bb8-b360-fbf79886a13d][Function: isvariable()]] [[id:a136eeee-4d49-4d15-afb7-0e8c1104d488][Function: strcmp()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]]
+:ID:       58342352-6958-4862-9830-e2b89a593472
+:end:
+#+title: Example illustrating registryvalue()
+
+Querying a registry value that does not exist results in an error. Avoid the errors by only querying for registry values that you know exist. For example condition the promise on the result of reg query lookup for the key.
+
+#+BEGIN_SRC cfengine3 :exports both :wrap EXAMPLE  :tangle registryvalue.cf
+  bundle agent wn12_so_000071
+  {
+    vars:
+      windows::
+        # reg query $(HIVE)\System\CurrentControlSet\Control\Lsa /v LimitBlankPasswordUse
+        "HIVE" string => "HKEY_LOCAL_MACHINE";
+        "PATH" string => "\Software\Microsoft\Windows NT\CurrentVersion\Setup\RecoveryConsole";
+        "KEY" string => "SecurityLevel";
+        "finding_id" string => "WN12-SO-000071";
+
+        "rv"
+          string => registryvalue( "$(HIVE)$(PATH)",
+                                   "$(KEY)" ),
+          if => returnszero( "reg query $(HIVE)$(PATH) /v $(KEY) > NUL: 2>&1", useshell);
+
+        # If the registry value does not exist or is not configured as specified, this is a finding:
+
+        "finding"
+          string => "$(finding_id)",
+          if => not( isvariable( "rv" ) ),
+          meta => { "inventory", "attribute_name=Microsoft Windows Server 2012 Member Server Security Technical Implementation Guide finding" },
+          comment => "Registry value does not exist";
+
+        "finding"
+          string => "$(finding_id)",
+          if => not( strcmp( "$(rv)", "1" ) ),
+          meta => { "inventory", "attribute_name=Microsoft Windows Server 2012 Member Server Security Technical Implementation Guide finding" },
+          comment => "Value not configured as specified";
+  }
+
+  bundle agent __main__
+  {
+    methods:
+        "wn12_so_000071";
+  }
+#+end_src
+
+*Notes:* Currently (as of 3.18) values of type =REG_SZ= (string), =REG_EXPAND_SZ= (expandable string) and =REG_DWORD= (double word) are supported.
+

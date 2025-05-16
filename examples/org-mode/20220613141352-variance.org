@@ -1,0 +1,40 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:ab785955-75b5-4026-ac02-0d58b3bcf749][Function: variance()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       7b579411-c745-4dfa-b5b7-239396d8eefc
+:CREATED:  [2022-06-13 Mon 14:22]
+:end:
+#+title: Example illustrating variance()
+
+#+begin_src cfengine3 :tangle variance.cf
+  bundle agent __main__
+  {
+    vars:
+  
+        "list_1" slist => { "1", "2", "3" };
+        "list_1_variance" real => variance( list_1 );
+  
+        "list_2" slist => { "2", "4", "6" };
+        "list_2_variance" real => variance( @(list_2) );
+  
+        "list_3" slist => { "1", "4", "10" };
+        "list_3_variance" real => variance( "@($(this.bundle).list_3)" );
+  
+    reports:
+  
+        "The variance in '$(with)' is $(list_1_variance)"
+          with => join( ", ", list_1 );
+  
+         "The variance in '$(with)' is $(list_2_variance)"
+          with => join( ", ", list_2 );
+  
+         "The variance in '$(with)' is $(list_3_variance)"
+          with => join( ", ", list_3 );
+  }
+#+end_src
+
+#+RESULTS:
+: R: The variance in '1, 2, 3' is 1.000000
+: R: The variance in '2, 4, 6' is 4.000000
+: R: The variance in '1, 4, 10' is 21.000000
+

@@ -1,0 +1,111 @@
+:PROPERTIES:
+:CREATED:  [2021-04-27 Tue 10:46]
+:ID:       41c8ce5e-8e4e-468b-9962-ccc7146b3026
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating Extending|Appending to a list
+#+roam_tags: CFEngine-example
+
+#+CAPTION: Extending a list by including itself
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "test" string => "test";
+        "test" string => "test $(test)";
+
+       # A list can include itself, if it is defined.
+        "l" slist => {};
+        "l" slist => { @(l), "d", "e", "f" };
+        "l" slist => { @(l), "g", "h", "i" };
+
+        # "m"
+        #   slist => { @(m), "a", "b", "c" },
+        #   policy => "ifdefined"; # Does not prevent error trying to include undefined self
+
+        "n"
+          slist => { "a", "b", "c", @(missing), "d", "e", "f" },
+          policy => "ifdefined"; # Does not prevent error trying to include undefined self
+
+
+    reports:
+        "vars: test == $(with)" with => "$(test)";
+        "vars: l    == $(with)" with => join( ", ", @(l) );
+        # "vars: m    == $(with)" with => join( ", ", @(m) ); # m not defined, it results in syntax error
+        "vars: n    == $(with)" with => join( ", ", @(n) );
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: vars: test == test test
+: R: vars: l    == d, e, f, g, h, i
+: R: vars: n    == a, b, c, d, e, f
+
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+         # policy => ifdefined does not prevent error trying to include undefined self
+         "m"
+           slist => { @(m), "a", "b", "c" },
+           policy => "ifdefined";
+
+          "n" slist => { };
+          "n"
+           slist => { @(n), "a", "b", "c" },
+           policy => "ifdefined";
+
+    reports:
+        "vars: n    == $(with)" with => join( ", ", @(n) );
+        "vars: m    == $(with)" with => join( ", ", @(m) );
+  }
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+   error: Scalar variable 'm' contains itself (non-convergent) '@(m)'
+   error: Variable 'm' contains itself indirectly - an unkeepable promise
+   error: Policy failed validation with command '"/home/nickanderson/.cfagent/bin/cf-promises" -c "/home/nickanderson/org-roam/CFEngine/examples/cfengine3-14SZIQ"'
+   error: CFEngine was not able to get confirmation of promises from cf-promises, so going to failsafe
+   error: CFEngine failsafe.cf: /home/nickanderson/.cfagent/inputs /home/nickanderson/.cfagent/inputs/failsafe.cf
+   error: TRUST FAILED, server presented untrusted key: SHA=b2c5d1bd64955a2237df85084883c6c8f25fff13cf8a5bb697632d80c417d002
+    info: Unable to establish connection to '192.168.33.2'
+   error: No suitable server found for '/home/nickanderson/.cfagent/inputs'
+   error: Promise belongs to bundle 'failsafe_cfe_internal_update' in file '/home/nickanderson/.cfagent/inputs/failsafe.cf' near line 121
+   error: Errors encountered when actuating files promise '/home/nickanderson/.cfagent/inputs'
+   error: TRUST FAILED, server presented untrusted key: SHA=b2c5d1bd64955a2237df85084883c6c8f25fff13cf8a5bb697632d80c417d002
+    info: Unable to establish connection to '192.168.33.2'
+   error: No suitable server found for '/home/nickanderson/.cfagent/modules'
+   error: Promise belongs to bundle 'failsafe_cfe_internal_update' in file '/home/nickanderson/.cfagent/inputs/failsafe.cf' near line 130
+   error: Errors encountered when actuating files promise '/home/nickanderson/.cfagent/modules'
+   error: TRUST FAILED, server presented untrusted key: SHA=b2c5d1bd64955a2237df85084883c6c8f25fff13cf8a5bb697632d80c417d002
+    info: Unable to establish connection to '192.168.33.2'
+   error: No suitable server found for '/home/nickanderson/.cfagent/inputs'
+   error: Promise belongs to bundle 'failsafe_cfe_internal_update' in file '/home/nickanderson/.cfagent/inputs/failsafe.cf' near line 144
+   error: Comment is 'If we failed to fetch policy we try again using
+                    the legacy default in case we are fetching policy
+                    from a hub that is not serving mastefiles via a
+                    shortcut.'
+   error: Errors encountered when actuating files promise '/home/nickanderson/.cfagent/inputs'
+   error: Method 'failsafe_cfe_internal_update' failed in some repairs
+R: Built-in failsafe policy triggered
+#+end_example
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=default:main\\. :tangle example.cf :command-in-result t
+  bundle agent __main__
+  {
+    vars:
+          "n"
+           slist => { @(missing), "a", "b", "c" };
+    reports:
+      "CFEngine $(sys.cf_version)";
+
+  }
+#+END_SRC
+
+#+RESULTS:
+: # cf-agent --no-lock --log-level info --show-evaluated-vars=default:main\\. --file example.cf
+: R: CFEngine 3.18.0a.b248be4d0
+: Variable name                            Variable value                                               Meta tags                               
+: default:main.n                            {"@(missing)","a","b","c"}                                  source=promise                          

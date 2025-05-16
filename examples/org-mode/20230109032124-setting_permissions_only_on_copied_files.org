@@ -1,0 +1,78 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:763031aa-965b-4c99-a5e1-544efa40d7bf][Function: lsdir()]] [[id:87c6bed4-cb2f-4a95-87c0-e53650e91909][Function: readstringlist()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]]
+:CFEngine_PromiseTypes: [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]] [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]]
+:ID:       a3efc322-d176-48fc-bae7-ce24d3fc5e4b
+:end:
+
+#+title: Example illustrating setting permissions only on copied files
+#+begin_src cfengine3 :tangle setting_permissions_only_on_copied_files.cf
+  bundle agent main
+  {
+
+    methods:
+      policy_server::
+        "Keep profile.d manifest fresh"
+          usebundle => srv_profile_d_manifest;
+
+      any::
+         "Populate profile.d"
+           usebundle => profile_d;
+  }
+
+  bundle agent srv_profile_d_manifest
+  {
+    vars:
+
+      policy_server::
+
+        "files" slist => lsdir("/srv/cfengine3/profile.d", ".*", "false");
+
+    files:
+
+      policy_server::
+
+        "/srv/cfengine3/profile.d.manifest"
+          create => "true",
+          edit_defaults => empty,
+          edit_line => insert_lines( @(files) ),
+          comment => "We generate a manifest of the files found in the profile.d
+                      directory so that remote hosts can know specifically what
+                      files are available.";
+  }
+
+  bundle agent profile_d
+  {
+    vars:
+
+        "cached_manifest"
+          string => "/tmp/profile.d.manifest",
+          comment => "Where we should store our local copy of the profile.d
+                      manifest.";
+
+    files:
+
+        "$(cached_manifest)"
+          create => "true",
+          copy_from => remote_dcp("/srv/cfengine3/profile.d.manifest", $(sys.policy_hub) ),
+          comment => "We need to try and cache the manifest locally so that we can
+                      read the list of files it contains.";
+
+    vars:
+
+        "manifest_files"
+          slist => readstringlist( $(cached_manifest),
+                                   "",
+                                   "\n",
+                                   100,
+                                   100K),
+          ifvarclass => fileexists( $(cached_manifest) ),
+          comment => "Get the list of files from our cached manifest if it exists.";
+
+
+    files:
+        "/etc/profile.d"
+          copy_from   => copy("pub_cfinput/profile.d/$(manifest_files)"),
+          perms   => system_owned(0444);
+  }
+#+end_src

@@ -1,0 +1,40 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:5b7569fb-9d00-4e85-838a-6a8dddffce2a][Function: getusers()]] [[id:9fa0ae98-ca1b-496e-b1b0-1fe7c513bb99][Function: getgid()]] [[id:c48aaf29-0477-460a-86f6-51b8e5107d41][Function: getuid()]] [[id:40cbe9ca-7c0d-4fb2-a970-549f1ac02ea0][Function: getuserinfo()]] [[id:3575108f-cb76-4107-82eb-3db20b302e13][Function: canonify()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       0647b5e7-b1f8-475b-b36c-bc619c0cbbd5
+:end:
+#+title: Example illustrating getting user info
+
+#+begin_src cfengine3 :tangle getting_user_info.cf :extra-opts --show-evaluated-vars=main\\.
+  bundle agent __main__
+  {
+    vars:
+        "users" slist => getusers( "root,daemon", concat( join( ",", expandrange( "[3-999]", 1 ) ) ) );
+
+        "gid[$(users)]" int => getgid( $(users) );
+        "uid[$(users)]" int => getuid( $(users) );
+
+        "userinfo_$(with)"
+          data => getuserinfo( $(users) ),
+          with => canonify( "$(users)" );
+
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.gid[bin]                    2                                                            source=promise
+default:main.gid[libvirt-qemu]           64055                                                        source=promise
+default:main.gid[nickanderson]           1000                                                         source=promise
+default:main.uid[bin]                    2                                                            source=promise
+default:main.uid[libvirt-qemu]           64055                                                        source=promise
+default:main.uid[nickanderson]           1000                                                         source=promise
+default:main.uid[nobody]                 65534                                                        source=promise
+default:main.userinfo_bin                {"description":"bin","gid":2,"home_dir":"/bin","shell":"/usr/sbin/nologin","uid":2,"username":"bin"} source=promise
+default:main.userinfo_libvirt_qemu       {"description":"Libvirt Qemu,,,","gid":108,"home_dir":"/var/lib/libvirt","shell":"/usr/sbin/nologin","uid":64055,"username":"libvirt-qemu"} source=promise
+default:main.userinfo_nickanderson       {"description":"Nick Anderson,,,","gid":1000,"home_dir":"/home/nickanderson","shell":"/bin/bash","uid":1000,"username":"nickanderson"} source=promise
+default:main.userinfo_nobody             {"description":"nobody","gid":65534,"home_dir":"/nonexistent","shell":"/usr/sbin/nologin","uid":65534,"username":"nobody"} source=promise
+default:main.users                        {"bin","nobody","nickanderson","libvirt-qemu"}              source=promise
+#+end_example

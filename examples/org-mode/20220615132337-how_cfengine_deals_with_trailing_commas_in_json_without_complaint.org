@@ -1,0 +1,143 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:  [[id:e96b1a60-51f6-4408-8827-b547f2b55d9f][Function: readjson()]] [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]] 
+:ID:       cbac2990-8224-482d-9928-f739ba345cac
+:CREATED:  [2022-06-15 Wed 13:25]
+:end:
+#+title: Example illustrating how CFEngine deals with trailing commas in JSON without complaint
+
+The last entry in =graylog= has a trailing comma which isn't valid JSON
+
+#+caption: /tmp/parametrage_des_sources.json
+#+begin_src json :tangle /tmp/parametrage_des_sources.json
+  {
+      "mogodb" : {
+          "nom_de_la_liste"     : "mogodb.list",
+          "nom_clef_brute"     : "GPG-KEY-mongodb.gpg.key",
+          "url_repo"           : "http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main"
+      },
+      "elasticsearch" : {
+          "nom_de_la_liste"     : "elasticsearch.list",
+          "nom_de_la_clef"     : "GPG-KEY-elasticsearch.gpg.key",
+          "url_repo"           : "https://artifacts.elastic.co/packages/oss-7.x/apt stable main"
+      },
+  
+      "graylog" : {
+          "nom_de_la_liste"     : "graylog.list",
+          "nom_de_la_clef"     : "graylog-keyring.gpg.key",
+          "url_repo"           : "https://packages.graylog2.org/repo/debian/ stable 4.2",
+      }
+  }
+#+end_src
+
+#+caption: Shell command with stderr
+#+begin_src sh :results output :exports both
+  exec 2>&1
+  jq < /tmp/parametrage_des_sources.json  
+  python3 -m json.tool < /tmp/parametrage_des_sources.json  
+  :
+#+end_src
+
+#+RESULTS:
+: parse error: Expected another key-value pair at line 17, column 5
+: Expecting property name enclosed in double quotes: line 17 column 5 (char 688)
+
+Though CFEngine handles it without complaint.
+
+#+caption: Example illustrating how CFEngine deals with trailing commas in JSON without complaint
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both how_cfengine_deals_with_trailing_commas_in_json_without_complaint.cf
+  bundle agent __main__
+  {
+    vars:
+        "file" string => "/tmp/parametrage_des_sources.json";
+  
+        "data_from_external_file" data => readjson( $(file)  );
+  
+        "data_from_inline" data => '{
+      "mogodb" : {
+          "nom_de_la_liste"     : "mogodb.list",
+          "nom_clef_brute"     : "GPG-KEY-mongodb.gpg.key",
+          "url_repo"           : "http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main"
+      },
+      "elasticsearch" : {
+          "nom_de_la_liste"     : "elasticsearch.list",
+          "nom_de_la_clef"     : "GPG-KEY-elasticsearch.gpg.key",
+          "url_repo"           : "https://artifacts.elastic.co/packages/oss-7.x/apt stable main"
+      },
+  
+      "graylog" : {
+          "nom_de_la_liste"     : "graylog.list",
+          "nom_de_la_clef"     : "graylog-keyring.gpg.key",
+          "url_repo"           : "https://packages.graylog2.org/repo/debian/ stable 4.2",
+      }
+        }';
+  
+    reports:
+        "$(file)"
+          printfile => cat( $(file) );
+  
+        "CFEngine dealt with data from external file:$(const.n)$(with)" with => storejson( data_from_external_file );
+  
+        "CFEngine dealt with data from inline:$(const.n)$(with)" with => storejson( data_from_inline );
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: /tmp/parametrage_des_sources.json
+R: {
+R:     "mogodb" : {
+R:         "nom_de_la_liste"     : "mogodb.list",
+R:         "nom_clef_brute"     : "GPG-KEY-mongodb.gpg.key",
+R:         "url_repo"           : "http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main"
+R:     },
+R:     "elasticsearch" : {
+R:         "nom_de_la_liste"     : "elasticsearch.list",
+R:         "nom_de_la_clef"     : "GPG-KEY-elasticsearch.gpg.key",
+R:         "url_repo"           : "https://artifacts.elastic.co/packages/oss-7.x/apt stable main"
+R:     },
+R: 
+R:     "graylog" : {
+R:         "nom_de_la_liste"     : "graylog.list",
+R:         "nom_de_la_clef"     : "graylog-keyring.gpg.key",
+R:         "url_repo"           : "https://packages.graylog2.org/repo/debian/ stable 4.2",
+R:     }
+R: }
+R: CFEngine dealt with data from external file:
+{
+  "elasticsearch": {
+    "nom_de_la_clef": "GPG-KEY-elasticsearch.gpg.key",
+    "nom_de_la_liste": "elasticsearch.list",
+    "url_repo": "https://artifacts.elastic.co/packages/oss-7.x/apt stable main"
+  },
+  "graylog": {
+    "nom_de_la_clef": "graylog-keyring.gpg.key",
+    "nom_de_la_liste": "graylog.list",
+    "url_repo": "https://packages.graylog2.org/repo/debian/ stable 4.2"
+  },
+  "mogodb": {
+    "nom_clef_brute": "GPG-KEY-mongodb.gpg.key",
+    "nom_de_la_liste": "mogodb.list",
+    "url_repo": "http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main"
+  }
+}
+R: CFEngine dealt with data from inline:
+{
+  "elasticsearch": {
+    "nom_de_la_clef": "GPG-KEY-elasticsearch.gpg.key",
+    "nom_de_la_liste": "elasticsearch.list",
+    "url_repo": "https://artifacts.elastic.co/packages/oss-7.x/apt stable main"
+  },
+  "graylog": {
+    "nom_de_la_clef": "graylog-keyring.gpg.key",
+    "nom_de_la_liste": "graylog.list",
+    "url_repo": "https://packages.graylog2.org/repo/debian/ stable 4.2"
+  },
+  "mogodb": {
+    "nom_clef_brute": "GPG-KEY-mongodb.gpg.key",
+    "nom_de_la_liste": "mogodb.list",
+    "url_repo": "http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main"
+  }
+}
+#+end_example
+

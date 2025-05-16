@@ -1,0 +1,56 @@
+:PROPERTIES:
+:ID:       d688a052-ae51-4447-b386-c1c312026925
+:CREATED:  [2021-10-14 Thu 14:54]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating methods-inherit
+
+https://gist.github.com/nickanderson/53992381081ded6d67126d340a638937
+
+#+begin_src cfengine3 :tangle methods_inherit.cf
+  bundle agent __main__
+  {
+    methods:
+        "parent";
+
+  }
+  bundle agent parent
+  {
+    classes:
+        "my_bundle_scoped_class_defined_in_parent";
+
+    methods:
+        "Write our child into our will"
+          usebundle => child,
+          inherit => "true";
+
+        "Step children get the shaft by default"
+          usebundle => step_child;
+
+  }
+  bundle agent child
+  {
+    reports:
+        "$(this.bundle): I can see my_bundle_scoped_class_defined_in_parent since my parent wrote me into the will."
+          if => "my_bundle_scoped_class_defined_in_parent";
+        "$(this.bundle): I wasn't written into the will, at least I am not red-headed."
+          unless => "my_bundle_scoped_class_defined_in_parent";
+  }
+  bundle agent step_child
+  {
+    reports:
+        "$(this.bundle): I can see my_bundle_scoped_class_defined_in_parent since my parent wrote me into the will."
+          if => "my_bundle_scoped_class_defined_in_parent";
+        "$(this.bundle): I wasn't written into the will, at least I am not red-headed."
+          unless => "my_bundle_scoped_class_defined_in_parent";
+  }
+#+end_src
+
+#+RESULTS:
+: R: child: I can see my_bundle_scoped_class_defined_in_parent since my parent wrote me into the will.
+: R: step_child: I wasn't written into the will, at least I am not red-headed.
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

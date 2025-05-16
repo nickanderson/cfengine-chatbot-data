@@ -1,0 +1,24 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:96e60318-a1a5-4383-b3e2-cb08da00519b][Function: intersection()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       428ca91a-9493-4893-a73f-4f82918eeefe
+:end:
+#+title: Example illustrating intersection()
+
+#+begin_src cfengine3 :tangle intersection.cf
+  bundle agent __main__
+  {
+    vars:
+        "l1" slist => { "one", "two", "three" };
+        "l2" slist => { "three", "four", "five" };
+
+    reports:
+        "Intersection between l1 and l2 is '$(with)'"
+          with => join( ", ", intersection( l1, l2 ) );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: Intersection between l1 and l2 is 'three'
+

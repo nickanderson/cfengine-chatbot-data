@@ -1,0 +1,65 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:8e0ea156-8171-4930-9f4a-f5b7d277e9fd][Function: findfiles_up()]]
+:CFEngine_PromiseTypes:
+:ID:       010cc51c-623f-4a60-9e2d-5e3cd247b981
+:CREATED:  [2023-01-31 Tue 14:49]
+:end:
+#+title: Example illustrating findfiles_up() aka search_up()
+
+
+#+begin_src cfengine3 :tangle findfiles_up_aka_search_up.cf
+  bundle agent __main__
+  {
+    classes:
+        "have_dir"
+          expression => isdir( "/tmp/cfengine/example/find/files/up/" );
+
+    files:
+        "/tmp/cfengine/example/find/files/up/." create => "true";
+        "/tmp/cfengine/example/FINDTHIS" create => "true";
+        "/tmp/cfengine/example/find/FINDTHAT" create => "true";
+
+    reports:
+      have_dir::
+        "First file starting with FIND is $(with)"
+          # with is processed before if/unless so we use a traditional class guard
+          with => nth( findfiles_up( "/tmp/cfengine/example/find/files/up",
+                                     "FIND*",
+                                     inf), 0);
+  }
+#+end_src
+
+#+RESULTS:
+: R: First file starting with FIND is /tmp/cfengine/example/find/FINDTHAT
+
+
+Seems bugged in 3.21.0 when you get multiple results
+
+#+begin_src cfengine3 :tangle findfiles_up_aka_search_up.cf
+  bundle agent __main__
+  {
+    files:
+      "/tmp/cfengine/examples/find/files/up/." create => "true";
+      "/tmp/cfengine/examples/FINDTHIS" create => "true";
+      "/tmp/cfengine/examples/find/FINDTHAT" create => "true";
+
+    reports:
+      "$(with)"
+        with => storejson( findfiles_up( "/tmp/cfengine/examples/find/files/up",
+                                         "FIND*",
+                                         inf)),
+        if => isdir("/tmp/cfengine/examples/find/files/up");
+  }
+#+end_src
+
+#+RESULTS:
+:    error: Function findfiles_up, path '/tmp/cfengine/examples/find/files/up' is not a directory
+:     info: Created directory '/tmp/cfengine/examples/find/files/up/.'
+:     info: Created file '/tmp/cfengine/examples/FINDTHIS', mode 0600
+:     info: Created file '/tmp/cfengine/examples/find/FINDTHAT', mode 0600
+: R: [
+:   "/tmp/cfengine/examples/find/FINDTHAT",
+:   "/tmp/cfengine/examples/FINDTHIS",
+:   "FINDTHAT"
+: ]

@@ -1,0 +1,25 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:cc0bc0bc-84c7-4684-94e3-45cf58d88fc5][Function: sum()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       ec61ece1-b86f-48cf-a283-904eaab70199
+:CREATED:  [2022-06-13 Mon 14:02]
+:end:
+#+title: Example illustrating sum()
+
+#+begin_src cfengine3 :tangle sum.cf
+  bundle agent __main__
+  {
+    vars:
+        "numbers" slist => { "42", "1337", "3929" };
+        "sum" real => sum( @(numbers) );
+  
+    reports:
+        "The sum of '$(with)' is '$(sum)'"
+          with => join( " + ", numbers );
+  
+  }
+#+end_src
+
+#+RESULTS:
+: R: The sum of '42 + 1337 + 3929' is '5308.000000'
+

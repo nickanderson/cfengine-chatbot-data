@@ -1,0 +1,43 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:a7d4400c-c895-43c0-8e8a-7ff7462908df][Function: some()]] [[id:a136eeee-4d49-4d15-afb7-0e8c1104d488][Function: strcmp()]] [[id:24647e3a-2af2-4460-897d-5b539bff2171][Function: eval()]] [[id:02720c30-efe9-4bb8-b360-fbf79886a13d][Function: isvariable()]] [[id:22b0b944-3335-40c8-957c-0e6a474d1c85][Function: length()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]]
+:ID:       eabad374-6f1f-4a76-9502-fda4735543ee
+:CREATED:  [2022-09-06 Tue 10:26]
+:end:
+#+title: Example illustrating Check if there are any subkeys under an associative array (classic array) key
+
+#+begin_quote
+How would you verify that =host002[vars][]= has any values?
+#+end_quote
+
+~getindices()~ always returns a list (instead of not returning when there is nothing to return). So, you can check it's /length/.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=default:main\\. :tangle check_if_there_are_any_subkeys_under_a_classic_array_key.cf
+  bundle agent __main__
+  {
+    vars:
+        # "host002[vars][nvs_test02_config_enabled]" string => "1";
+        "host002_idx" slist => getindices("host002[vars]");
+        "l" int => length( host002_idx );
+
+    reports:
+        "$(this.bundle):exists"
+          if => isvariable("host002_idx");
+
+        "There are no subkeys under host002[vars] with strcmp()"
+          if => strcmp( length( host002_idx ), 0 );
+
+        "There are no subkeys under host002[vars] with eval()"
+          if => eval( "$(l) == 0", class, infix );
+
+        "There are no subkeys under host002[vars] with some()"
+          unless => some( ".*", length( host002_idx ) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: main:exists
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:main.host002_idx                                                                              source=promise
+: default:main.l                           0                                                            source=promise

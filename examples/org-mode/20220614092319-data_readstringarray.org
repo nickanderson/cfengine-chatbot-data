@@ -1,0 +1,74 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]] [[id:c0bf0161-ee5b-4697-a8bc-8e0db75e7129][Function: data_readstringarray()]] [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]] 
+:ID:       0b573952-33a5-4eae-8ba6-4245718c6dad
+:CREATED:  [2022-06-14 Tue 09:36]
+:end:
+#+title: Example illustrating data_readstringarray()
+
+- Prototype :: =data_readstringarray(filename, comment, split, maxentries, maxbytes)=
+
+Parse line based delimited file into a =data= variable.
+
+#+begin_src cfengine3 :tangle data_readstringarray.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "demo";
+  }
+  bundle agent demo
+  {
+    vars:
+        "pkgs_desired_data"
+          if => fileexists( "/tmp/line-based-delimited.dat" ),
+          data => data_readstringarray( "/tmp/line-based-delimited.dat",
+                                        "\s+#[^\n]*",
+                                        "\s+|\s+",
+                                        inf,
+                                        inf);
+        "i" slist => getindices( pkgs_desired_data );
+  
+    reports:
+        "$(with)"
+          with => storejson( pkgs_desired_data );
+        "'$(i)' should be '$(pkgs_desired_data[$(i)][1])'";
+  
+  
+  
+  }
+  bundle agent init
+  {
+    files:
+        "/tmp/line-based-delimited.dat"
+          content => "  # This is a line I would like to ignore
+  # Package Name | Desired Package State (present|absent)
+  vim | present
+  emacs | present
+  nano | absent
+  ";
+  
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: {
+  "emacs": [
+    "|",
+    "present"
+  ],
+  "nano": [
+    "|",
+    "absent"
+  ],
+  "vim": [
+    "|",
+    "present"
+  ]
+}
+R: 'vim' should be 'present'
+R: 'emacs' should be 'present'
+R: 'nano' should be 'absent'
+#+end_example
+

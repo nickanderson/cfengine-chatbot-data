@@ -1,0 +1,32 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:03ce2f02-a459-4aa4-ac97-5652d7332958][Function: maplist()]] [[id:3575108f-cb76-4107-82eb-3db20b302e13][Function: canonify()]] [[id:586797d9-2c8e-485e-aec5-fc9d6b733a41][Function: classmatch()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:b9a498ff-0f13-4195-9850-9d1b4ec7a403][Function: concat()]] 
+:ID:       6fef3cb1-e040-40cc-b969-2875174d5c67
+:CREATED:  [2022-07-18 Mon 13:39]
+:end:
+#+title: Example illustrating classmatch()
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle classmatch.cf
+  bundle agent __main__
+  {
+      vars:
+        "versions" slist => { "3.18", "revamp" };
+        "cversions" slist => maplist( canonify( $(this) ), versions );
+
+      classes:
+
+        "doc_3_18_publication_repaired";
+
+        "doc_publication_updated"
+          expression => classmatch("doc_$(with)_publication_repaired"),
+          with => concat( "(", join( "|", cversions ), ")" );
+
+    reports:
+        "docs updated" if => doc_publication_updated;
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: docs updated

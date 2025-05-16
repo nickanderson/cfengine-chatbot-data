@@ -1,0 +1,51 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:c200f739-6ff6-4e5a-b4b1-98202a01352b][Function: url_get()]] [[id:0dfced06-32c5-4cbd-80d6-9e0b99f9b953][Function: expandrange()]] [[id:24647e3a-2af2-4460-897d-5b539bff2171][Function: eval()]] [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][Function: nth()]] [[id:22b0b944-3335-40c8-957c-0e6a474d1c85][Function: length()]]
+:ID:       51eefe69-a42e-4d5f-819a-b2c568a27605
+:CREATED:  [2022-08-16 Tue 09:45]
+:end:
+#+title: Example illustrating iterating over a list of urls and checking return codes from url_get
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :command-in-result t :tangle iterating_over_a_list_of_urls_and_checking_return_codes.cf
+  bundle agent __main__
+  {
+    methods:
+        "example_down_detector";
+  }
+  bundle agent example_down_detector
+  {
+    vars:
+
+        "urls"
+          slist => { "cfengine.com", "notcfengine.com" };
+
+       # Vars of type data can not be defined as arrays. So, for this case where we
+       # are iterating we need to iterate on something that can be used in a
+       # variable name, or we need to tag individual variables so that we can find
+       # them later.
+       # "urls_idx" slist => getindices( urls ); # Unfortunately, you can't simply pull the numeric positions from a list
+       "urls_length" int => length( urls );
+       "urls_idx"
+        slist => expandrange( "[0-$(with)]", 1),
+        with => eval( "$(urls_length)-1", math, infix);
+
+       "url_get_opts" data => '{}';
+
+      "ret_$(urls_idx)"
+        data => url_get( nth( urls, $(urls_idx) ), @(url_get_opts) );
+
+
+    reports:
+        "$(urls_idx)";
+        "Return Code: $(with) $(ret_$(urls_idx)[returncode])"
+          with => nth( urls, $(urls_idx) );
+
+   }
+#+end_src
+
+#+RESULTS:
+: # cf-agent --no-lock --log-level info --file /home/nickanderson/org/roam/daily/work/cfengine3-oEbTei
+: R: 0
+: R: 1
+: R: Return Code: cfengine.com 301
+: R: Return Code: notcfengine.com 0

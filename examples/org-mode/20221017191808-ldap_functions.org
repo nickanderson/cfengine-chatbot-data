@@ -1,0 +1,56 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: 
+:CFEngine_PromiseTypes: 
+:ID:       e2da32f2-87ac-4acf-9e74-f1f6003c13bc
+:end:
+#+title: Example illustrating ldap functions
+
+ldaparray[0]
+ldaplist[0]
+ldapvalue[0]
+
+#+begin_src cfengine3 :tangle ldap_functions.cf
+  bundle agent __main__
+  {
+    vars:
+        # Get all matching values for "uid" - should be a single record match
+
+        "list" slist =>  ldaplist(
+                                   "ldap://ldap.forumsys.com",
+                                   "cn=read-only-admin,dc=example,dc=com",
+                                   "(sn=User)",
+                                   "uid",
+                                   "subtree",
+                                   "none"
+        );
+  }
+#+end_src
+
+* [[https://www.forumsys.com/2022/05/10/online-ldap-test-server/][Online LDAP Test Server - Forum Systems]] :website:
+
+[2022-10-17 Mon 19:18]
+
+** Article
+
+Here are the credentials for an Online LDAP Test Server that you can use for testing your applications that require LDAP-based authentication.  Our goal is to eliminate the need for you to download, install and configure an LDAP sever for testing. If all you need is to test connectivity and authentication against a few identities, you have come to the right place.  If you find this useful or would like us to enhance/modify this test LDAP server, please leave a comment.
+
+LDAP Server Information (read-only access):
+
+Smart Analytics Software Used in the Casino: [[https://casinosworld.ca/instant-withdrawal-casino/]] . If you have never considered how Smart Analytics software could help your casino, now is the time. This software helps you to collect data on your visitors. With this data, you can better understand their behaviors and patterns. For example, you can know when they're more likely to play and increase customer retention. It's a win-win situation for both you and your customers. With this software, you can start analyzing your visitors' habits and improve your overall customer service. Data from the casino can help casinos understand what their customers like and dislike. It can also help them make more profitable decisions. This is because smart analytics can provide detailed statistics and recommendations based on the behavior of players. These insights can be used to make games that will attract and retain customers. Online casinos are already using these techniques to improve the user experience. It can help you better predict what players are going to want and do to get the best results. Casinos have been automating the process of identifying customer profiles. Smart data platforms can collect data on a guest's income, hobbies, active memberships, and education. This data helps you improve the quality of their experience. Using this information, you can create a personalized plan to meet these unique needs. The casino can also use this data to inform guests about new games and attractions. And since smart analytics can be used for marketing purposes, you can ensure that all of the onsite amenities are accessible and convenient.
+
+Server: /ldap.forumsys.com  / Port: /389/ Bind DN:  /cn=read-only-admin,dc=example,dc=com/ Bind Password: /password/ All user passwords are /password/. You may also bind to individual Users (uid) or the two Groups (ou) that include: /ou=mathematicians,dc=example,dc=com/
+
+- /riemann/
+- /gauss/
+- /euler/
+- /euclid/
+
+/ou=scientists,dc=example,dc=com/
+
+- /einstein/
+- /newton/
+- /galieleo/
+- /tesla/
+
+[[https://www.forumsys.com/wp-content/uploads/2014/02/LDAP-Users1-1.png]] The list of users and groups available are displayed above.  For searching, editing and maintaining your own LDAP server, or for connecting to this Online Test LDAP instance, we recommend  [[https://directory.apache.org/studio/][Apache Directory Studio]].

@@ -1,0 +1,22 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:[[id:3a261d80-008b-45d9-8ad6-107eae472663][Function: string_trim()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       fbf4fc43-dd31-4696-9054-5a95d35525f7
+:end:
+#+title: Example illustrating string_trim()
+
+#+begin_src cfengine3 :tangle string_trim.cf :extra-opts --show-evaluated-vars=main\\.
+  bundle agent __main__
+  {
+    vars:
+        "t" string => string_trim( "   leading and trailing    ");
+    reports:
+        "'$(t)'";
+  }
+#+end_src
+
+#+RESULTS:
+: R: 'leading and trailing'
+: Variable name                            Variable value                                               Meta tags                                Comment                                 
+: default:main.t                           leading and trailing                                         source=promise                                                                   

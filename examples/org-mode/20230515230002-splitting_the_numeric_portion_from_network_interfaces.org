@@ -1,0 +1,40 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][nth()]] [[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][string_split()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       00299464-60e4-4726-a135-7fe3aaf5edcb
+:end:
+#+title: Example illustrating splitting the numeric portion from network interfaces
+
+#+BEGIN_SRC cfengine3 :tangle splitting_the_numeric_portion_from_network_interfaces.cf
+  bundle agent main
+  {
+    vars:
+       "my_list"    slist => { "xvnc10", "xvnc30", "xvnc40" };
+
+       # When you split a string, you will have at least 2 parts from splitting
+       # it. Since you are splitting off the front of the string you end up with
+       # an empty string (the first half of your split string) and then the digits
+       # in the second half. Since you are only interested in the second half of
+       # that split, you can pick it out using nth(). You might be able to do
+       # similar using data_regextract() or similar.
+
+       "my_split[$(my_list)]"  string => nth( string_split( $(my_list), "^xvnc", 2), 1);
+
+    reports:
+      "CFEngine: $(sys.cf_version)";
+      "my_list   $(my_list)";
+      "my_split $(my_split[$(my_list)])";
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: CFEngine: 3.11.0a.334d1fc
+: R: my_list   xvnc10
+: R: my_list   xvnc30
+: R: my_list   xvnc40
+: R: my_split 10
+: R: my_split 30
+: R: my_split 40
+
+

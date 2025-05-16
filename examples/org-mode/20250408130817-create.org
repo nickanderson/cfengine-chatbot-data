@@ -1,0 +1,37 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:23504787-b597-41ff-819d-b9625f773210][files]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       89f3229b-6b1b-4304-902b-52b651c1114d
+:CREATED:  [2025-04-08 Tue 13:14]
+:end:
+#+title: Example illustrating files create attribute
+
+#+begin_src cfengine3 :tangle create.cf
+  bundle agent __main__
+  {
+    vars:
+        "check_file" string => "/tmp/check-file.txt";
+
+    files:
+        "$(check_file)"
+          handle => "create_file",
+          create => "true",
+          if => "file_absent_report_kept";
+
+     reports:
+        "$(check_file) does not exist"
+          classes => results( "namespace", "file_absent_report" );
+
+        "$(check_file) was repaired"
+          depends_on => { "create_file" };
+
+        "$(check_file) exists"
+          if => fileexists( "/tmp/check-file.txt" );
+  }
+#+end_src
+
+#+RESULTS:
+: R: /tmp/check-file.txt does not exist
+: R: /tmp/check-file.txt was repaired
+: R: /tmp/check-file.txt exists

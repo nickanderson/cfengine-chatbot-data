@@ -1,0 +1,63 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:03ce2f02-a459-4aa4-ac97-5652d7332958][Function: maplist()]] [[id:02b0a54c-0a33-4e76-b92f-5231a3ea603f][Function: basename()]] [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][Function: getvalues()]] [[id:edde1a7e-c787-46b8-8ae1-285f12dafd90][Function: sort()]] [[id:d962e93b-b713-4d3e-8837-750857dbd3cb][Function: regex_replace()]] [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][Function: nth()]] [[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][Function: string_split()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       674c0773-c062-4117-8a21-3b7a5bd2b09b
+:CREATED:  [2022-10-26 Wed 10:00]
+:end:
+#+title: Example illustrating a few ways to strip suffixes from a list
+
+Here are a few different ways to take ~"numbered" slist => {'1.txt','2.txt','3.txt'};~
+and get a list where =.txt= is stripped from each element.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=default:main\\. :tangle a_few_ways_to_strip_suffixes_from_a_list.cf
+  bundle agent __main__
+  {
+
+    vars:
+
+        "numbered" slist => {'1.txt','2.txt','3.txt'};
+
+        # Using maplist and basename()
+        "l_stripped_0"
+          slist => maplist( basename( "$(this)", ".txt" ), numbered );
+
+        # Using an associative (aka classic) array, basename and getvalues()
+        "a_stripped_1[$(numbered)]"
+          string => basename( "$(numbered)", ".txt" );
+        "l_stripped_1" slist => getvalues( "a_stripped_1" ); # no order promised!
+        "l_stripped_1a" slist => sort( getvalues( "a_stripped_1" ), "int"  ); # sorted numerically
+
+        # Using associatiative (aka classic) array, with regex replace, nth and with
+        # to get the desirable portion of the string into both the key and the value
+
+        "a_stripped_2[$(with)]"
+          with => regex_replace( $(numbered), "(.*).txt", "$1", "" ),
+          string => nth( string_split( $(numbered), ".txt", inf ), 0);
+        "l_stripped_2a" slist => getindices( a_stripped_2 ); # no order promised!
+        "l_stripped_2b" slist => getvalues( a_stripped_2 ); # no order promised!
+
+        #By converting to a string, and back to a list while using regex_replace to munge the string
+        "l_stripped_3"
+          slist => string_split( regex_replace( join( " ", numbered ), ".txt", "", "g" ),
+                                 "\s+", inf ) ;
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.a_stripped_1[1.txt]         1                                                            source=promise
+default:main.a_stripped_1[2.txt]         2                                                            source=promise
+default:main.a_stripped_1[3.txt]         3                                                            source=promise
+default:main.a_stripped_2[1]             1                                                            source=promise
+default:main.a_stripped_2[2]             2                                                            source=promise
+default:main.a_stripped_2[3]             3                                                            source=promise
+default:main.l_stripped_0                 {"1","2","3"}                                               source=promise
+default:main.l_stripped_1                 {"3","2","1"}                                               source=promise
+default:main.l_stripped_1a                {"1","2","3"}                                               source=promise
+default:main.l_stripped_2a                {"2","1","3"}                                               source=promise
+default:main.l_stripped_2b                {"2","1","3"}                                               source=promise
+default:main.l_stripped_3                 {"1","2","3"}                                               source=promise
+default:main.numbered                     {"1.txt","2.txt","3.txt"}                                   source=promise
+#+end_example

@@ -1,0 +1,26 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes:
+:ID:       1c7de5b2-aac0-4b1a-a681-cf808b237b4d
+:CREATED:  [2023-09-20 Wed 17:32]
+:end:
+#+title: Example illustrating selectservers()
+
+#+begin_src cfengine3 :tangle selectservers.cf :extra-opts --log-level info --show-evaluated-vars=default:main\\.
+  bundle agent __main__
+  {
+    vars:
+        "ahostlist" slist => { "192.168.56.2" };
+        "ai" int => selectservers( @(ahostlist), 5308, "HELP", ".*", inf, ahostlist_responders_arr);
+
+        "bhostlist" slist => { "google.com" };
+        "bi" int => selectservers( @(bhostlist), 80, "GET", ".*", inf, bhostlist_responders_rr);
+
+  }
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:main.hostlist                     {"192.168.56.2"}                                            source=promise
+: default:main.i                           0                                                            source=promise

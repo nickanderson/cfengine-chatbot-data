@@ -1,0 +1,33 @@
+:PROPERTIES:
+:CREATED:  [2021-04-05 Mon 20:27]
+:ID:       139dc14a-62dd-435f-ad72-5ef706103491
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating vars classic array
+#+roam_tags: CFEngine
+#+filetags: CFEngine
+
+#+begin_src cfengine3 :tangle vars_classic_array.cf 
+  bundle agent __main__
+  {
+    vars:
+      "array[key0]" string => "value0";
+      "array[key1]" string => "value1";
+      "array[key2]" string => "value2";
+
+    reports:
+      "$(with)" with => join(", ", getindices( "array" ));
+      "$(with)" with => join(",", getvalues( "array" ));
+  }
+#+end_src
+
+#+RESULTS:
+: R: key2, key1, key0
+: R: value2,value1,value0
+
+*References:*
+- [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][join()]]
+- [[id:cb299172-277a-42de-a1c9-c82e54379e4e][getindices()]]
+- [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][getvalues()]]
+- [[id:5f995365-46bb-4701-80d8-12c163fc6ca8][with =>]]
+

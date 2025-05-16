@@ -1,0 +1,22 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]] [[id:a86603b4-130a-4209-80f9-5e741293f2ce][Function: execresult_as_data()]]
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       67c04fa0-bede-4af0-b485-cd0f8d114b5a
+:end:
+#+title: Example illustrating execresult_as_data()
+
+#+begin_src cfengine3 :tangle execresult_as_data.cf
+  bundle agent __main__
+  {
+    reports:
+        "$(with)"
+          with => storejson( execresult_as_data( "$(sys.bindir)/cf-agent --version", "noshell" ) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: {
+:   "exit_code": 0,
+:   "output": "CFEngine Core 3.18.1\nCFEngine Enterprise 3.18.1"
+: }

@@ -1,0 +1,80 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:06fd5e9a-1d92-4ee5-9140-c95f4ec1af38][Function: difference()]] [[id:96e60318-a1a5-4383-b3e2-cb08da00519b][Function: intersection()]] [[id:763031aa-965b-4c99-a5e1-544efa40d7bf][Function: lsdir()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       21c8cfec-f5f4-4ace-984f-98cb4e100de7
+:CREATED:  [2022-07-18 Mon 13:30]
+:end:
+#+title: Example illustrating Delete files that are not explicitly desired
+
+~difference()~ in particular I have used for purging things in a directory that are not part of things I know I want.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both delete_files_that_are_not_explicitly_desired.cf
+  bundle agent __main__
+  {
+     vars:
+        "things_i_know_i_want"
+          slist => { "/tmp/test5",
+                     "/tmp/test.cf",
+                     "/tmp/test7.cf"
+                   };
+
+
+        "things_i_have"
+          slist => lsdir( "/tmp", "test.*", true);
+
+        "things_i_have_but_dont_explicitly_want"
+          slist => difference(things_i_have, things_i_know_i_want);
+
+        "things_i_have_and_explicitly_want"
+          slist => intersection(things_i_have, things_i_know_i_want);
+        
+        "things_i_dont_have_and_explicitly_want"
+          slist => difference(things_i_know_i_want, things_i_have );
+
+
+    reports:
+        "Things I want:$(const.n)$(const.t)$(with)"
+          with => join( "$(const.n)$(const.t)", things_i_know_i_want );
+
+        "Things I have:$(const.n)$(const.t)$(with)"
+          with => join( "$(const.n)$(const.t)", things_i_have );
+
+         "Things I have but don't explicitly want:$(const.n)$(const.t)$(with)"
+          with => join( "$(const.n)$(const.t)", things_i_have_but_dont_explicitly_want );
+
+        "Things I have and explicitly want:$(const.n)$(const.t)$(with)"
+          with => join( "$(const.n)$(const.t)", things_i_have_and_explicitly_want );
+
+        "Things I don't have and explicitly want:$(const.n)$(const.t)$(with)"
+          with => join( "$(const.n)$(const.t)", things_i_dont_have_and_explicitly_want );
+
+
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: Things I want:
+	/tmp/test5
+	/tmp/test.cf
+	/tmp/test7.cf
+R: Things I have:
+	/tmp/test.odt
+	/tmp/test6
+	/tmp/test.cf
+	/tmp/test.org
+	/tmp/test5
+	/tmp/test
+R: Things I have but don't explicitly want:
+	/tmp/test.odt
+	/tmp/test6
+	/tmp/test.org
+	/tmp/test
+R: Things I have and explicitly want:
+	/tmp/test.cf
+	/tmp/test5
+R: Things I don't have and explicitly want:
+	/tmp/test7.cf
+#+end_example
+
+

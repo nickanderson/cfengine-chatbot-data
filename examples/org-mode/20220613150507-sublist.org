@@ -1,0 +1,27 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:450d4ed1-961b-4748-a555-ab091127145a][Function: sublist()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       80180d67-42d6-4b0c-ab5e-bae3986cee80
+:CREATED:  [2022-06-13 Mon 15:08]
+:end:
+#+title: Example illustrating sublist()
+
+#+begin_src cfengine3 :tangle sublist.cf
+  bundle agent __main__
+  {
+    vars:
+        "list" slist => { "1", "2", "3", "4", "5", "6" };
+  
+    reports:
+        "head 2 of list contains: $(with)"
+          with => join( ", ", sublist( list, head, 2) );
+  
+        "tail 3 of list contains: $(with)"
+          with => join( ", ", sublist( list, tail, 3) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: head 2 of list contains: 1, 2
+: R: tail 3 of list contains: 4, 5, 6
+

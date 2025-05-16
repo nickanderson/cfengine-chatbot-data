@@ -1,0 +1,52 @@
+:PROPERTIES:
+:ID:       88fc3a92-8498-404d-ac1b-2b1d930335cd
+:CREATED:  [2021-04-30 Fri 17:05]
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating abortbundleclasses
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  body agent control
+  {
+        abortbundleclasses => { "abort_bundle_.*"};
+  }
+
+  bundle agent __main__
+  {
+    methods:
+        "one";
+        "two";
+        "three";
+  }
+
+  bundle agent one
+  {
+    classes:
+        "abort_bundle_because_any" expression => "any";
+
+    reports:
+        "hello from $(this.bundle)";
+  }
+
+  bundle agent two
+  {
+    reports:
+        "hello from $(this.bundle)";
+  }
+
+  bundle agent three
+  {
+    classes:
+        "abort_bundle_because_i_exist"
+          expression => fileexists( $(this.promise_filename) );
+
+    reports:
+        "hello from $(this.bundle)";
+  }
+#+END_SRC
+
+#+RESULTS:
+:    error: Bundle 'one' aborted on defined class 'abort_bundle_because_any'
+: R: hello from two
+:    error: Bundle 'three' aborted on defined class 'abort_bundle_because_i_exist'
+

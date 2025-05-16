@@ -1,0 +1,33 @@
+:PROPERTIES:
+:ID:       7d602e9c-3f8e-4402-b9aa-6a7676e06b9e
+:CFEngine_Functions:[[id:cc7f97c8-71a6-4afe-89a5-0d7362ec27c2][Function: cf_version_minimum()]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating cf_version_minimum()
+
+#+begin_src cfengine3 :tangle cf_version_minimum.cf
+  bundle agent __main__
+  {
+    reports:
+        "I am running $(sys.cf_version)";
+
+        "This message will start appearing on hosts running cfengine 3"
+          if => cf_version_minimum( "3" );
+
+        "This message will start appearing on hosts running cfengine 3.18"
+          if => cf_version_minimum( "3.18" );
+
+        "This message will start appearing on hosts running cfengine 3.18.1"
+          if => cf_version_minimum( "3.18.1" );
+
+        "This will stop appearing once a host is running 4.18.1"
+          unless => cf_version_minimum( "4.18.1" );
+  }
+#+end_src
+
+#+RESULTS:
+: R: I am running 3.18.1
+: R: This message will start appearing on hosts running cfengine 3
+: R: This message will start appearing on hosts running cfengine 3.18
+: R: This message will start appearing on hosts running cfengine 3.18.1
+: R: This will stop appearing once a host is running 4.18.1

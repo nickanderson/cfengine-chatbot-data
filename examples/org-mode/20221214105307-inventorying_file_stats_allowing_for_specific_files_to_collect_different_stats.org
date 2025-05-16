@@ -1,0 +1,97 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:[[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][Function: string_split()]] [[id:582843be-0874-4dd8-ae2c-8a9512ca9d95][Function: not()]] [[id:02720c30-efe9-4bb8-b360-fbf79886a13d][Function: isvariable()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]]  [[id:4e90de3a-a792-40cf-8d83-3157d5317310][Function: filestat()]] [[id:429aca38-2b9e-42f4-b8cc-280152b7a126][Function: and()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       41252b2d-61f6-4418-bf53-b19b3481327e
+:CREATED:  [2022-12-14 Wed 11:01]
+:end:
+#+title: Example illustrating inventorying file stats allowing for specific files to collect different stats
+
+We need to avoid collecting for the files that have specific attributes requested when collecting for the files using the defaults. Then, for the files that have specific overrides, we collect the attributes requested.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=default:test\\. :tangle inventorying_file_stats_allowing_for_specific_files_to_collect_different_stats.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "test";
+  }
+  bundle agent init
+  {
+    files:
+        "/tmp/file1.txt" content => "file 1";
+        "/tmp/file2.txt" content => "file 2";
+  }
+  bundle agent test
+  {
+    vars:
+
+      any::
+
+        "file_path" slist => { #"/tmp/file1.txt", # specific files could exist in this list or not, they are explicity accounted for
+                               "/tmp/file2.txt"};
+
+        # Define the default set of attributes to collect if the variable is not
+        # already defined with the expectation that if it's already defined,
+        # that's because it was pre-defined via Augments (def.json, or
+        # host_specific.json)
+
+        "attributes"
+          slist => string_split("size,mtime,modeoct,permsoct,gid,uid", ",", 999), # Rather than actually splitting this, id just define it as a list and save the clock tick on the function execution.
+          if => not( isvariable( "attributes" ) );
+
+      # default:test.file_attr - data containerwith keys of file names and values of the filestat info to collect for each file
+        "_attr_override_files"
+          slist => getindices( file_attr ),
+          if => isvariable( file_attr );
+
+        "file_info[$(file_path)][$(attributes)]"
+          string => filestat( $(file_path), $(attributes) ),
+          if => and( fileexists("$(file_path)"),
+                     not( isvariable( "file_attr[$(file_path)]" ) ) ); # If file attributes are overridden for a specific file, we will do it separately
+
+        "file_info[$(_attr_override_files)][$(file_attr[$(_attr_override_files)])]"
+          string => filestat( "$(_attr_override_files)", "$(file_attr[$(_attr_override_files)])" ),
+          if => fileexists("$(_attr_override_files)");
+  }
+#+end_src
+
+Then, in augments we can request specific attributes for specific files.
+
+#+begin_src json :tangle /tmp/def.json
+  {
+      "variables": {
+          "default:test.file_attr": {
+              "value": {
+                  "/tmp/file1.txt": [ "size", "mtime" ]
+                  },
+              "comment": "Specific file filestat attribute collection settings"
+          }
+      }
+  }
+#+end_src
+
+And, we can see that =/tmp/file1.txt= got mtime and size collected while =file2.txt= had all of them.
+
+#+begin_src sh :results output :exports both
+  chmod 600 /tmp/def.json /tmp/inventory-filestats-w-specific-file-overrides.cf
+  cf-agent -Kf /tmp/inventory-filestats-w-specific-file-overrides.cf --show-evaluated-vars=default:test\\.
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Variable name                            Variable value                                               Meta tags                                Comment
+default:test._attr_override_files         {"/tmp/file1.txt"}                                          source=promise
+default:test.attributes                   {"size","mtime","modeoct","permsoct","gid","uid"}           source=promise
+default:test.file_attr                   {"/tmp/file1.txt":["size","mtime"]}                          source=augments_file                     Specific file filestat attribute collection settings
+default:test.file_info[/tmp/file1.txt][mtime] 1671032449                                                   source=promise
+default:test.file_info[/tmp/file1.txt][size] 6                                                            source=promise
+default:test.file_info[/tmp/file2.txt][gid] 1000                                                         source=promise
+default:test.file_info[/tmp/file2.txt][modeoct] 100600                                                       source=promise
+default:test.file_info[/tmp/file2.txt][mtime] 1671032449                                                   source=promise
+default:test.file_info[/tmp/file2.txt][permsoct]                                                              source=promise
+default:test.file_info[/tmp/file2.txt][size] 6                                                            source=promise
+default:test.file_info[/tmp/file2.txt][uid] 1000                                                         source=promise
+default:test.file_path                    {"/tmp/file2.txt"}                                          source=promise
+#+end_example

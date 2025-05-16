@@ -1,0 +1,30 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][nth()]] [[id:a136eeee-4d49-4d15-afb7-0e8c1104d488][strcmp()]] [[id:582843be-0874-4dd8-ae2c-8a9512ca9d95][not()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       68280005-68f7-4b53-9a3c-daf791e6604f
+:CREATED:  [2023-05-16 Tue 11:51]
+:end:
+#+title: Example illustrating the first entry in sys.interfaces matches sys.ipv4
+
+#+BEGIN_SRC cfengine3 :tangle the_first_entry_in_sys_interfaces_matches_sys_ipv4.cf
+  bundle agent main
+  {
+    vars:
+      "first_iface" string => nth( "sys.interfaces", 0);
+
+    reports:
+
+      # Here we report if the IP address of the FIRST INTERFACE listed in
+      # sys.interfaces matches the IP of sys.ipv4
+
+      "$(sys.ipv4[$(first_iface)]) == $(sys.ipv4)"
+        if => strcmp( $(sys.ipv4), "$(sys.ipv4[$(first_iface)])" );
+
+      "$(sys.ipv4[$(first_iface)]) != $(sys.ipv4)"
+        if => not( strcmp( $(sys.ipv4), "$(sys.ipv4[$(first_iface)])" ) );
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: 192.168.42.189 == 192.168.42.189

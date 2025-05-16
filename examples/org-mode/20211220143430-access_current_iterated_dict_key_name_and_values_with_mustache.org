@@ -1,0 +1,91 @@
+:PROPERTIES:
+:ID:       313b1093-d65f-4d0f-a5fa-7b5cd587086d
+:CREATED:  [2021-12-20 Mon 14:34]
+:END:
+#+title: Example illustrating Access current iterated dict key name and values with mustache
+
+- =@= Renders the currently iterated key
+- =.= Accesses a value
+
+So, if you are iterating over the dict aliases which is a dict of dicts:
+  
+ #+begin_src json
+   {
+       "aliases": {
+           "key1": {
+               "msg": "Hello from 1",
+               "msg2": "Hello2 from 1"
+           },
+           "key2": {
+               "msg": "Hello from 2",
+               "msg2": "Hello2 from 2"
+           }
+       }
+   }
+#+end_src 
+
+You could do this:
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "d" data => '{
+    "aliases": {
+      "key1": {
+        "msg": "Hello from 1", 
+        "msg2": "Hello2 from 1" 
+      },
+      "key2": {
+        "msg": "Hello from 2", 
+        "msg2": "Hello2 from 2" 
+      }
+    }
+  }';
+  
+    reports:
+         "$(with)"
+           with => string_mustache( "$(const.n){{#aliases}} {{@}}:$(const.t){{.msg}}|{{{.msg2}}}$(const.n){{/aliases}}", d );
+  
+  
+  }
+#+end_src
+
+#+RESULTS:
+: R: 
+:  key1:	Hello from 1|Hello2 from 1
+:  key2:	Hello from 2|Hello2 from 2
+: 
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+    bundle agent __main__
+    {
+  
+    vars:
+        "d" data => '{
+    "aliases": {
+      "alice.alyson": "alice",
+      "bob.bobberts": "bob",
+      "carol.carolton": "carol"
+    }
+  }';
+  
+    reports:
+        "Aliases:$(const.n)$(with)"
+          with => string_mustache( "{{#aliases}} {{@}}:$(const.t){{.}}$(const.n){{/aliases}}", d );
+  }
+#+end_src
+
+#+RESULTS:
+: R: Aliases:
+:  alice.alyson:	alice
+:  bob.bobberts:	bob
+:  carol.carolton:	carol
+: 
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:7b2ad788-6a8d-4f1a-94e5-6947fd7e2431][string_mustache()]]
+- [[id:5f995365-46bb-4701-80d8-12c163fc6ca8][with =>]]

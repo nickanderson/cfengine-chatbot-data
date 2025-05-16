@@ -1,0 +1,19 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:ID:       b89151fd-f92f-42e5-87d0-ab16b423aa2e
+:CFEngine_Functions: [[id:892a5b10-082a-40cc-9e2e-67d25fdc8792][Function: classesmatching()]] 
+:end:
+#+title: Example illustrating classesmatching()
+
+#+begin_src cfengine3 :tangle classesmatching.cf
+  bundle agent __main__
+  {
+    reports:
+        "$(with)"
+          with => join( ", ", classesmatching( "cfengine.*" ) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: cfengine_3_18_1, cfengine, cfengine_3, cfengine_3_18
+

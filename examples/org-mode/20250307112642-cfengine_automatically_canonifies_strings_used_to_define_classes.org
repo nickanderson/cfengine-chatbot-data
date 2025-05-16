@@ -1,0 +1,37 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:3575108f-cb76-4107-82eb-3db20b302e13][canonify()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][classes]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][reports]]
+:ID:       ba455a1a-1827-4874-b477-5dc757cdfc3c
+:CREATED:  [2025-03-07 Fri 11:28]
+:end:
+#+title: Example illustrating CFEngine automatically canonifies strings used to define classes
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle cfengine_automatically_canonifies_strings_used_to_define_classes.cf
+  bundle agent __main__
+  {
+    vars:
+        "my_str" string => "hello-world";
+
+    classes:
+        "$(my_str)";
+
+    reports:
+        "CFEngine automatically canonifies strings when defining classes";
+        "You should canonify strings explicitly when testing against them.";
+
+        "$(my_str) is a defined class!"
+          comment => "Boy, that would be a surprise.",
+          if => "$(my_str)";
+
+        "$(with) from $(my_str) is a defined class!"
+          comment => "Here we test against the canonified version of the string",
+          if => "$(with)",
+          with => canonify( "$(my_str)");
+  }
+#+end_src
+
+#+RESULTS:
+: R: CFEngine automatically canonifies strings when defining classes
+: R: You should canonify strings explicitly when testing against them.
+: R: hello_world from hello-world is a defined class!

@@ -1,0 +1,47 @@
+:PROPERTIES:
+:ID:       a5fb1c11-ed0f-49c3-b653-56af317667ad
+:CREATED:  [2021-08-20 Fri 11:55]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:c200f739-6ff6-4e5a-b4b1-98202a01352b][Function: url_get()]]
+:END:
+#+title: Example illustrating url_get
+
+#+begin_src cfengine3 :tangle url_get.cf
+  bundle agent __main__
+  {
+    vars:
+        "_response"
+          data => url_get( "http://wtfismyip.com/json", '{}' );
+
+        "_response_data"
+          data => parsejson( "$(_response[content])" );
+
+    reports:
+        "Value of _response:$(const.n)$(with)" with => storejson( _response );
+        "Response Data:$(const.n)$(with)" with => storejson( _response_data );
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: Value of _response:
+{
+  "content": "{\n    \"YourFuckingIPAddress\": \"52.206.213.169\",\n    \"YourFuckingLocation\": \"Ashburn, VA, United States\",\n    \"YourFuckingHostname\": \"ec2-52-206-213-169.compute-1.amazonaws.com\",\n    \"YourFuckingISP\": \"Amazon.com\",\n    \"YourFuckingTorExit\": false,\n    \"YourFuckingCountryCode\": \"US\"\n}\n",
+  "headers": "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Methods: GET\r\nAccess-Control-Allow-Origin: *\r\nContent-Type: application/json\r\nDate: Fri, 20 Aug 2021 16:55:26 GMT\r\nContent-Length: 284\r\n\r\n",
+  "rc": 0,
+  "returncode": 200,
+  "success": true
+}
+R: Response Data:
+{
+  "YourFuckingCountryCode": "US",
+  "YourFuckingHostname": "ec2-52-206-213-169.compute-1.amazonaws.com",
+  "YourFuckingIPAddress": "52.206.213.169",
+  "YourFuckingISP": "Amazon.com",
+  "YourFuckingLocation": "Ashburn, VA, United States",
+  "YourFuckingTorExit": false
+}
+#+end_example
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

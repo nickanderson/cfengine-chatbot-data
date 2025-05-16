@@ -1,0 +1,116 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:c0bf0161-ee5b-4697-a8bc-8e0db75e7129][Function: data_readstringarray()]]  [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]] [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]]  [[id:e95dec7a-9b23-4e95-b47d-c8da319071eb][Function: classfiltercsv()]] 
+:ID:       530d33c3-877a-4359-a8c7-243534b5b199
+:end:
+#+title: Example illustrating classfiltercsv()
+
+#+begin_src cfengine3 :tangle classfiltercsv.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "demo";
+
+  }
+  bundle agent demo 
+  {
+        vars:
+              # Parse the file into a data container
+        "_d"
+          data => data_readstringarray("/tmp/my.csv",  # filename,
+                                       "#[^\n]*",      # comment,
+                                       ",",            # split,
+                                       inf,            #maxentries,
+                                       inf);           #maxbytes)
+
+        # Get an index to iterate with
+        "_di" slist => getindices( _d );
+
+    reports:
+      # Here we iterate over the class expressions $(_di) and print out the data from the matching rows
+        "I feel $(_d[$(_di)][0]) because $(_d[$(_di)][1])"
+          if => "$(_di)";
+
+      # Let's also take a look at the data structure resulting from data_readstringarray()
+        "data_readstringarray() returned: $(with)" with => storejson( _d ),
+          unless => "no_show_data";
+
+  }
+  bundle agent init
+  {
+    files:
+        # $(const.r) is necessary to make the line endings rfc compliant, and allowing the function to properly parse the file.
+
+        "/tmp/my.csv"
+          content => "#ClassExpression,Feeling,Reason
+  linux,Good,I am running my preferred platform and it's near luch. I hope it's Ramen!
+  linux.Morning,Good,I just had breakfast and I don't have broken windows nor rotten fruit.
+  windows,Bad,nothing is ever good if I am running Windows.
+  darwin,Bad,who want's to compute with rotten fruit?";
+
+    commands:
+        "/usr/bin/unix2dos /tmp/my.csv";
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+  notice: Q: "...n/unix2dos /tmp": unix2dos: converting file /tmp/my.csv to DOS format...
+R: I feel Good because I am running my preferred platform and it's near luch. I hope it's Ramen!
+R: data_readstringarray() returned: {
+  "darwin": [
+    "Bad",
+    "who want's to compute with rotten fruit?"
+  ],
+  "linux": [
+    "Good",
+    "I am running my preferred platform and it's near luch. I hope it's Ramen!"
+  ],
+  "linux.Morning": [
+    "Good",
+    "I just had breakfast and I don't have broken windows nor rotten fruit."
+  ],
+  "windows": [
+    "Bad",
+    "nothing is ever good if I am running Windows."
+  ]
+}
+#+end_example
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+      # Parse the file into a data container
+        "_d"
+          data => classfiltercsv("/tmp/my.csv",  # filename,
+                                 "no",           # has_header
+                                 "0");           # class_column
+                                                 # optional sort column
+
+        # Get an index to iterate with
+        "_di" slist => getindices( _d );
+
+    reports:
+      # Here we iterate over the class expressions $(_di) and print out the data from the matching rows
+        "I feel $(_d[$(_di)][0]) because $(_d[$(_di)][1])";
+
+      # Let's also take a look at the data structure resulting from classfiltercsv()
+        "classfiltercsv() returned: $(with)" with => storejson( _d ),
+          unless => "no_show_data";
+  }
+#+end_src
+
+#+RESULTS:
+: R: I feel Good because I am running my preferred platform and it's near luch. I hope it's Ramen!
+: R: classfiltercsv() returned: [
+:   {
+:     "0": "Good",
+:     "1": "I am running my preferred platform and it's near luch. I hope it's Ramen!"
+:   }
+: ]
+
+
+

@@ -1,0 +1,18 @@
+:PROPERTIES:
+:ID:       4cb33289-47f3-49aa-a6cf-eba1fcd9dd72
+:END:
+:PROPERTIES:
+:CREATED: [2022-06-11 Sat 00:23]
+:CFEngine_Functions:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END
+#+title: Example illustrating classesmatching()
+#+begin_src cfengine3 :tangle classesmatching.cf
+  bundle agent __main__
+  {
+   %?
+
+  }
+#+end_src
+* References
+-  

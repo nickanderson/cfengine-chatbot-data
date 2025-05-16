@@ -1,0 +1,34 @@
+:PROPERTIES:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:ID:       2905cb10-278e-4787-b5a1-961e72b397f2
+:CFEngine_Functions: [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]] [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][Function: getvalues()]] [[id:e1d06fa2-da14-4861-b724-0a0e46c99977][Function: variablesmatching_as_data()]]  
+:CREATED:  [2021-07-13 Tue 14:37]
+:END:
+#+title: Example illustrating symlink
+#+filetags: :CFEngine:
+
+Here we have a data structure =targets= mapping symlinks to their targets. Additionally, we are using the /meta/ tag =physdir= to identify targets of real directories, which we want to exist. We use ~variablesmatching_as_data()~ to find the variables tagged with =physdir= and build a list of those values so that we can promise the directory presence, then we iterate over the keys of the targets to promise symlinks to the desired targets.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle /tmp/test.cf
+  bundle agent __main__
+  {
+    vars:
+        "targets[/tmp/symlink1]" meta => { "physdir" }, string => "/tmp/realdir";
+        "targets[/tmp/symlink2]" string => "/tmp/symlink1";
+        "_targets" slist => getindices( "targets" );
+
+        "_physical_dirs" slist => getvalues( variablesmatching_as_data( ".*", "physdir" ) );
+
+    files:
+        "$(_physical_dirs)/." create => "true";
+        "$(_targets)"
+          link_from => ln_s( $(targets[$(_targets)]) );
+
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Created directory '/tmp/realdir/.'
+:     info: Linked files '/tmp/symlink2' -> '/tmp/symlink1'
+:     info: Linked files '/tmp/symlink1' -> '/tmp/realdir'

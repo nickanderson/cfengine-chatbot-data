@@ -1,0 +1,35 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:b9a498ff-0f13-4195-9850-9d1b4ec7a403][Function: concat()]] [[id:4e90de3a-a792-40cf-8d83-3157d5317310][Function: filestat()]]
+:CFEngine_PromiseTypes: [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]][[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       19445888-83d4-467d-9a2f-6c81a785a86f
+:CREATED:  [2022-12-16 Fri 09:38]
+:end:
+#+title: Example illustrating default directory permissions
+
+#+begin_src cfengine3 :tangle default_directory_permissions.cf :log-level info
+  bundle agent __main__
+  {
+    files:
+        "/tmp/a/promised/directory/."
+          delete => default:tidy,
+          handle => "dir_not_present",
+          comment => "It's important that the directory not exist in order to illustrate the default";
+
+        "/tmp/a/promised/directory/."
+          create => "true",
+          depends_on => { "dir_not_present" };
+
+    reports:
+      "CFEngine $(sys.cf_version)";
+      "Directory has $(with)"
+        with => concat( "permoct='", filestat( "/tmp/a/promised/directory/.", "permoct"  ), "', ",
+                        "permstr='", filestat( "/tmp/a/promised/directory/.", "permstr"  ), "'" );
+  }
+#+end_src
+
+#+RESULTS:
+:     info: Deleted directory '/tmp/a/promised/directory'
+:     info: Created directory '/tmp/a/promised/directory/.'
+: R: CFEngine 3.21.0a.7d5cc88fb
+: R: Directory has permoct='755', permstr='drwxr-xr-x'

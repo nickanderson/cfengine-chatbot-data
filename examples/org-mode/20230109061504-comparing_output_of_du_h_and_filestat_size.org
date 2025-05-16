@@ -1,0 +1,48 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:fff20305-1aba-42d2-a887-59adb50dc271][Function: findfiles()]] [[id:e0afaf78-745e-41bd-9ca6-2a02ff322108][Function: canonifyuniquely()]] [[id:4e90de3a-a792-40cf-8d83-3157d5317310][Function: filestat()]] [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][Function: getvalues()]] [[id:cc0bc0bc-84c7-4684-94e3-45cf58d88fc5][Function: sum()]] [[id:4f9b79dc-b8cc-4fcf-bb74-09792aa3d9eb][Function: execresult()]]
+:CFEngine_PromiseTypes: [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]] [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       497a24c6-7826-4c1c-ad3e-2117fea0e46d
+:end:
+#+title: Example illustrating comparing output of du -h and filestat(size)
+#+BEGIN_SRC cfengine3 :exports both :tangle comparing_output_of_du_h_and_filestat_size.cf
+  bundle agent main
+  {
+    files:
+      "/tmp/file1.txtt"
+        create => "true";
+
+      "/tmp/file2.txtt"
+        create => "true",
+        edit_line => insert_lines("hello");
+
+    vars:
+      "files" slist => findfiles("/tmp/*.txtt");
+      "cfiles[$(files)]" string => canonifyuniquely($(files));
+      "sizes[$(cfiles[$(files)])]" string => filestat($(files), "size");
+      "size_values" slist => getvalues(sizes);
+      "total_size" real => sum(size_values);
+
+      "duh[$(cfiles[$(files)])]" string => execresult("/usr/bin/du -h $(files)", noshell);
+      "dub[$(cfiles[$(files)])]" string => execresult("/usr/bin/du -b $(files)", noshell);
+      "duk[$(cfiles[$(files)])]" string => execresult("/usr/bin/du -k $(files)", noshell);
+
+   reports:
+    "CFEngine $(sys.cf_version)";
+    "Total: $(total_size)";
+    "du -h = $(duh[$(cfiles[$(files)])])";
+    "du -b = $(dub[$(cfiles[$(files)])])";
+    "du -k = $(duk[$(cfiles[$(files)])])";
+  }
+#+END_SRC
+#+RESULTS:
+#+BEGIN_EXAMPLE
+: R: CFEngine 3.9.1
+: R: Total: 12.000000
+: R: du -h = 4.0K	/tmp/file1.txtt
+: R: du -h = 4.0K	/tmp/file2.txtt
+: R: du -b = 6	/tmp/file1.txtt
+: R: du -b = 6	/tmp/file2.txtt
+: R: du -k = 4	/tmp/file1.txtt
+: R: du -k = 4	/tmp/file2.txtt
+#+END_EXAMPLE

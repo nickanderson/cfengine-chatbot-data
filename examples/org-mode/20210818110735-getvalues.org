@@ -1,0 +1,35 @@
+:PROPERTIES:
+:ID:       2127818b-dc77-4644-91c9-e40bfcedd6f7
+:CREATED:  [2021-08-18 Wed 11:11]
+:END:
+#+title: Example illustrating getvalues()
+#+roam_alias: getvalues
+
+~getvalues()~ will extract the values from a classic array or data container.
+
+For example, here we see that getvalues returns a list containing all values from both the =one= and =two= keys from the =pkg= classic array.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "pkg[one]" slist => { "one", "two" };
+        "pkg[two]" slist => { "three", "four" };
+  
+        "m" slist => getvalues( pkg );
+  
+    reports:
+        "$(m)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: one
+: R: two
+: R: three
+: R: four
+
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:d202c34d-21c3-46e9-a668-79fbdb61b9e7][Function: getvalues()]] 

@@ -1,0 +1,113 @@
+:PROPERTIES:
+:ID:       07f688c0-b94f-4aa0-bfa0-7d451e7cb9cb
+:END:
+#+Title: Parsing /etc/services with CFEngine
+
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+    vars:
+      "services" string => "tcp 127.0.0.1:25  1147/master
+  tcp 0.0.0.0:443  1039/nginx:
+  tcp 127.0.0.1:8001  1218/python
+  tcp 0.0.0.0:10050  939/zabbix_agentd
+  tcp 127.0.0.1:6379  891/redis-server
+  tcp 0.0.0.0:80  1039/nginx:
+  tcp 0.0.0.0:22  889/sshd
+  tcp 127.0.0.1:5432  929/postmaster
+  udp 127.0.0.1:323 645/chronyd";
+
+      "p" int => parsestringarrayidx(array, $(services), "", "[:/\s]", inf, inf);
+      "i" slist => getindices( array ); 
+      reports:
+         "$(with)" with => string_mustache( "{{%-top-}}", mergedata( array )); 
+         "$(array[$(i)][0]) $(array[$(i)][2]) $(array[$(i)][5])";
+  }
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+R: {
+  "0": {
+    "0": "tcp",
+    "1": "127.0.0.1",
+    "2": "25",
+    "3": "",
+    "4": "1147",
+    "5": "master"
+  },
+  "1": {
+    "0": "tcp",
+    "1": "0.0.0.0",
+    "2": "443",
+    "3": "",
+    "4": "1039",
+    "5": "nginx",
+    "6": ""
+  },
+  "2": {
+    "0": "tcp",
+    "1": "127.0.0.1",
+    "2": "8001",
+    "3": "",
+    "4": "1218",
+    "5": "python"
+  },
+  "3": {
+    "0": "tcp",
+    "1": "0.0.0.0",
+    "2": "10050",
+    "3": "",
+    "4": "939",
+    "5": "zabbix_agentd"
+  },
+  "4": {
+    "0": "tcp",
+    "1": "127.0.0.1",
+    "2": "6379",
+    "3": "",
+    "4": "891",
+    "5": "redis-server"
+  },
+  "5": {
+    "0": "tcp",
+    "1": "0.0.0.0",
+    "2": "80",
+    "3": "",
+    "4": "1039",
+    "5": "nginx",
+    "6": ""
+  },
+  "6": {
+    "0": "tcp",
+    "1": "0.0.0.0",
+    "2": "22",
+    "3": "",
+    "4": "889",
+    "5": "sshd"
+  },
+  "7": {
+    "0": "tcp",
+    "1": "127.0.0.1",
+    "2": "5432",
+    "3": "",
+    "4": "929",
+    "5": "postmaster"
+  },
+  "8": {
+    "0": "udp",
+    "1": "127.0.0.1",
+    "2": "323",
+    "3": "645",
+    "4": "chronyd"
+  }
+}
+R: tcp 443 nginx
+R: tcp 25 master
+R: tcp 10050 zabbix_agentd
+R: tcp 22 sshd
+R: tcp 80 nginx
+R: tcp 6379 redis-server
+R: tcp 8001 python
+R: tcp 5432 postmaster
+#+end_example

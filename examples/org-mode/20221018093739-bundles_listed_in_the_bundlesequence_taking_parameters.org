@@ -1,0 +1,32 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       22af2ece-e8ba-4cd5-b4bb-8d40829b70b0
+:CREATED:  [2022-10-18 Tue 09:38]
+:end:
+#+title: Example illustrating bundles listed in the bundlesequence taking parameters
+
+Can bundles listed in the bundlesequence take parameters?
+
+Yes.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle bundles_listed_in_the_bundlesequence_taking_parameters.cf
+      body common control
+      {
+         bundlesequence => {
+                             mine( "my parameter value" )
+         };
+      }
+      bundle agent mine( param )
+      {
+        reports: "Hi got '$(param)'";
+      }
+#+end_src
+
+#+RESULTS:
+: R: Hi got 'my parameter value'
+
+Can you supply parameters to bundles via the =--bundlesequence= option?
+
+No.

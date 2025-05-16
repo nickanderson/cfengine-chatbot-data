@@ -1,0 +1,139 @@
+:PROPERTIES:
+:CREATED:  [2021-04-20 Tue 15:55]
+:ID:       019744cd-e0aa-487f-bbd7-8ac9c7d3b013
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating body inheritance with inherit_from
+#+roam_tags: CFEngine-example
+
+#+BEGIN_QUOTE
+  lets say i have this classes body:
+#+END_QUOTE
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  body classes set_some_fancy_classes ( x, y) 
+  {
+          promise_kept => { "some_fancy_class_${x}_${y}_kept" }; 
+          promise_repaired => { "some_fancy_class_${x}_${y}_repaired" };  
+          repair_failed => { "some_fancy_class_${x}_${y}_notkept" }; 
+          repair_denied => { "some_fancy_class_${x}_${y}_notkept" }; 
+          repair_timeout => { "some_fancy_class_${x}_${y}_notkept" }; 
+  } 
+ #+END_SRC 
+
+#+begin_quote
+  which is used like this:
+#+end_quote 
+  
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  commands: 
+     "/bin/true" 
+         handle => "some meaningful string",
+         classes => set_some_fancy_classes( "$(this.promiser)", 
+  "$(this.handle)" );
+#+END_SRC  
+
+#+begin_quote
+  so far so good, the one thing that i dont get is, how do i set "additional" 
+  classes in this scenario, for example i want to set another class  like 
+  this (not handled by the mentioned classes body):
+#+end_quote
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+
+  commands: 
+      "/bin/true" 
+          handle => "some meaningful string",
+          classes => set_some_fancy_classes( "$(this.promiser)", 
+  "$(this.handle)" ),
+          classes = if_repaired("some_class_to_handle_dependencies");
+#+END_SRC
+
+#+begin_quote
+  problem is, "last one wins" rule is firing, so no luck here.
+  
+  i read about the "inherit_from" attribute, but i have no clue how to 
+  implement this or if it is possible anyway. the documentation / examples 
+  left me clueless.
+  
+  i want to set the classes from the " set_some_fancy_classes" body PLUS the 
+  class from the "if_repaired" attribute.
+#+end_quote
+Easily record content
+
+Hi Chris,
+
+Right, you should not attach multiple of the same attribute to the same promise. Perhaps we should make the parser disallow it all together because it's not an expected use.
+
+I believe this example implements what you are looking for.
+
+We define a new classes body =my_set_some_extra_fancy_classes=, it takes 3 arguments where the third argument is an additional class to set when the promise is /repaired/.
+Note, since we are setting =promise_repaired= differently in =my_set_some_extra_fancy_classes= than =my_set_some_fancy_classes= we have to completely re-define it.
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-classes=some_ :tangle example.cf :command-in-result t
+  bundle agent __main__
+  {
+    commands:
+        "/bin/true"
+          handle => "some meaningful string",
+          classes => my_set_some_extra_fancy_classes( "$(this.promiser)",
+                                                "$(this.handle)",
+                                                "some_class_to_handle_dependencies" );
+      
+        "/bin/false"
+          handle => "some meaningless string",
+          classes => my_set_some_extra_fancy_classes( "$(this.promiser)",
+                                                "$(this.handle)",
+                                                "some_class_to_handle_dependencies" );
+  }
+
+  body classes my_set_some_extra_fancy_classes( x, y, z)
+  # @breif In addition to the classes set by `set_some_fancy_classes` define `z` when the promise is repaired 
+  {
+          inherit_from => set_some_fancy_classes( $(x), $(y) );
+          promise_repaired => { "some_fancy_class_${x}_${y}_repaired", $(z) };
+  }
+
+  body classes set_some_fancy_classes ( x, y)
+  {
+          promise_kept => { "some_fancy_class_${x}_${y}_kept" };
+          promise_repaired => { "some_fancy_class_${x}_${y}_repaired" };
+          repair_failed => { "some_fancy_class_${x}_${y}_notkept" };
+          repair_denied => { "some_fancy_class_${x}_${y}_notkept" };
+          repair_timeout => { "some_fancy_class_${x}_${y}_notkept" };
+  }
+ #+END_SRC 
+
+ #+RESULTS:
+ #+begin_example
+ # cf-agent --no-lock --log-level info --show-evaluated-classes=some_ --file example.cf
+     info: Executing 'no timeout' ... '/bin/true'
+     info: Completed execution of '/bin/true'
+     info: Executing 'no timeout' ... '/bin/false'
+    error: Finished command related to promiser '/bin/false' -- an error occurred, returned 1
+     info: Completed execution of '/bin/false'
+ Class name                                                   Meta tags                               
+ some_class_to_handle_dependencies                                                                    
+ some_fancy_class__bin_false_some_meaningless_string_notkept                                          
+ some_fancy_class__bin_true_some_meaningful_string_repaired                                           
+ #+end_example
+
+Here I use =--show-evaluated-classes= which lists the /namespace/ scoped classes defined at the end of the agent run filtered for those starting with =some_=. We can see that both =some_class_to_handle_dependencies= and =some_fancy_class__bin_true_some_meaningful_string_kept= get defined.
+
+ #+RESULTS:
+ : # cf-agent --no-lock --log-level info --show-evaluated-classes=some_ --file example.cf
+ :     info: Executing 'no timeout' ... '/bin/true'
+ :     info: Completed execution of '/bin/true'
+ : Class name                                                   Meta tags                               
+ : some_class_to_handle_dependencies                                                                    
+ : some_fancy_class__bin_true_some_meaningful_string_kept                                               
+
+
+#+begin_src cfengine3 :tangle body_inheritance_with_inherit_from.cf 
+  accessedbefore
+  bundle agent __main__
+  {
+
+
+  }
+#+end_src

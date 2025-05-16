@@ -1,0 +1,26 @@
+:PROPERTIES:
+:CREATED:  [2021-04-05 Mon 10:44]
+:ID:       efec3bbf-d0e9-49cf-a317-6f8878872674
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating printfile head
+#+roam_tags: CFEngine
+
+#+begin_src cfengine3 :tangle example_printfile_head.cf
+  bundle agent __main__
+  {
+    reports:
+        "I start with"
+          printfile => head( $(this.promise_filename) ); 
+  }
+#+end_src
+
+#+RESULTS:
+: R: I start with
+: R: body file control{ inputs => { '$(sys.libdir)/stdlib.cf' };}
+: R: bundle agent __main__
+: R: {
+: R:   reports:
+: R:       "I start with"
+: R:         printfile => head( $(this.promise_filename) ); 
+: R: }

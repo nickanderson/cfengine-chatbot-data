@@ -1,0 +1,23 @@
+:PROPERTIES:
+:ID:       0e977c5f-1312-465e-ac32-f1f8bc590f24
+:END:
+#+title: Example illustrating basename()
+
+#+begin_src cfengine3 :tangle basename.cf 
+  bundle agent __main__
+  {
+    vars:
+        "path" string => "/etc/passwd";
+
+    reports:
+        "basename of '$(path)' is '$(with)'"
+          with => basename( $(path) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: basename of '/etc/passwd' is 'passwd'
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:02b0a54c-0a33-4e76-b92f-5231a3ea603f][basename()]]

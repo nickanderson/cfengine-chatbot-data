@@ -1,0 +1,37 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: 
+:ID:       e6d00ffd-245a-44c9-865c-d1713d7208c6
+:CREATED:  [2022-07-18 Mon 13:33]
+:end:
+#+title: Example illustrating Filtering a list based on a PCRE regular expression
+
+You can use ~grep()~ to return a list of elements that match a regular expression in another list.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both filtering_a_list_based_on_a_pcre_regular_expression.cf
+  bundle agent __main__
+  {
+     vars:
+        "list_of_things"
+          slist => { "things/with/policy_enabled/thing.cf",
+                     "more/policy_enabled/things/more.cf",
+                     "more/THAT_policy_enabled/things/more.cf",
+                     "more/THAT_policy_disabled/x/y.cf",
+                     "more/THAT_policy_WIP/things/x.cf"
+                   };
+
+
+        "things_matched_policy_enabled"
+          slist => grep( ".*policy_enabled.*", "$(this.bundle).list_of_things" );
+
+    reports:
+        "$(things_matched_policy_enabled)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: things/with/policy_enabled/thing.cf
+: R: more/policy_enabled/things/more.cf
+: R: more/THAT_policy_enabled/things/more.cf
+
+

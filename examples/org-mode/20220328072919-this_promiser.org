@@ -1,0 +1,42 @@
+:PROPERTIES:
+:ID:       88f175f0-55ff-46d6-bbaa-392c6a682122
+:CREATED:  [2022-03-28 Mon 07:29]
+:END:
+#+title: Example illustrating this.promiser
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+        "ThePromiser" string => "/tmp/example-promiser.txt";
+  
+    files:
+        "$(ThePromiser)" -> { "Nick" }
+          create => "true", 
+          edit_template_string => "$(this.promiser) is the one who makes a promise.
+            Too bad '$(const.dollar)(this.comment)' doesn't exist.
+            Too bad '$(cosnt.dollar)(this.promisees)' doesn't exist.
+            Too bad '$(const.dollar)(this.stakeholders)' doesn't exist.
+            Too bad '$(const.dollar)(cons.dollar)(this.promiser)' doesn't work in the 'content =>' attribute.",
+          template_method => "inline_mustache", 
+          comment => "Definitions of promiser. a person who makes a promise. synonyms: promisor. types: vower. someone who makes a solemn promise to do something or behave in a certain way";
+  
+    reports:
+        "$(ThePromiser)"
+          printfile => cat( $(this.promiser) );
+  }
+  
+#+end_src
+
+#+RESULTS:
+:     info: Updated rendering of '/tmp/example-promiser.txt' from mustache template 'inline'
+: R: /tmp/example-promiser.txt
+: R: /tmp/example-promiser.txt is the one who makes a promise.
+: R:           Too bad '$(this.comment)' doesn't exist.
+: R:           Too bad '$(cosnt.dollar)(this.promisees)' doesn't exist.
+: R:           Too bad '$(this.stakeholders)' doesn't exist.
+: R:           Too bad '$(cons.dollar)(this.promiser)' doesn't work in the 'content =>' attribute.
+
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

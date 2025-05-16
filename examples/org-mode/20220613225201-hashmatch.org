@@ -1,0 +1,32 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:ad0308e3-f6ba-4b8c-acdf-a2b0c8e6ad97][Function: hashmatch()]] 
+:ID:       c5ab9a6f-9bb0-40d7-a8cb-d9f677a3b17b
+:end:
+#+title: Example illustrating hashmatch()
+
+#+begin_src cfengine3 :tangle hashmatch.cf
+  bundle agent __main__
+  {
+    files:
+        "/tmp/test.txt"
+          content => "Hello World!";
+    reports:
+        "/tmp/test.txt matches the expected md5sum 'ed076287532e86365e841e92bfc50d8c'"
+          if => hashmatch( "/tmp/test.txt", md5, 'ed076287532e86365e841e92bfc50d8c' );
+  }
+#+end_src
+
+#+RESULTS:
+: R: /tmp/test.txt matches the expected md5sum 'ed076287532e86365e841e92bfc50d8c'
+
+#+caption:
+#+begin_src sh :results output :exports both
+  exec 2>&1
+  md5sum /tmp/test.txt
+  :
+#+end_src
+
+#+RESULTS:
+: ed076287532e86365e841e92bfc50d8c  /tmp/test.txt
+

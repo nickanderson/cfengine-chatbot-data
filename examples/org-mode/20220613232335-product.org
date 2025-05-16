@@ -1,0 +1,24 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:4b350fb0-d25d-4857-8cae-f773639b9f0e][Function: product()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       3caa2985-1a7d-496a-8169-4408a0aacbfc
+:end:
+#+title: Example illustrating product()
+
+#+begin_src cfengine3 :tangle product.cf
+  bundle agent __main__
+  {
+    vars:
+        "multiply" slist => { 2, 3, 4 };
+        "product" real => product( multiply );
+
+    reports:
+        "The product of '$(with)' is '$(product)'"
+          with => join( ", ", multiply );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: The product of '2, 3, 4' is '24.000000'
+

@@ -1,0 +1,26 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:4f9b79dc-b8cc-4fcf-bb74-09792aa3d9eb][Function: execresult()]] [[id:5befbdde-ac33-4ef4-b95d-700607b04491][Function: filesize()]]
+:CFEngine_PromiseTypes:  [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:23504787-b597-41ff-819d-b9625f773210][Promise type: files]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       3c9b25df-e573-458d-8b28-62d9109a9822
+:end:
+#+title: Example illustrating filesize()
+
+#+begin_src cfengine3 :tangle filesize.cf
+  bundle agent __main__
+  {
+    vars:
+        "file" string => "/tmp/hello_world.txt";
+    files:
+        "$(file)"
+          content => "Hello World!";
+
+    reports:
+        "filesize('$(file)'): $(with)" with => filesize( $(file) );
+        "stat --format='%s' $(file): $(with)" with => execresult( "/bin/stat --format='%s' $(file)", noshell );
+  }
+#+end_src
+
+#+RESULTS:
+: R: filesize('/tmp/hello_world.txt'): 12
+: R: stat --format='%s' /tmp/hello_world.txt: '12'

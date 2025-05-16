@@ -1,0 +1,30 @@
+:PROPERTIES:
+:ID:       78a484fb-d7e5-4a01-a69c-768d08fd35e2
+:CREATED:  [2022-02-02 Wed 13:41]
+:END:
+#+title: Example illustrating Unique entries from two lists
+
+#+caption: Unique entries from two lists
+#+begin_src cfengine3 :tangle unique_entries_from_two_lists.cf 
+  bundle agent __main__
+  {
+        vars:
+        "a" slist => { "1", "2", "3" };
+        "b" slist => { "3", "4", "5" };
+        "ab" slist => { @(a), @(b) };
+        "u" slist => unique( @(ab) );
+   reports:
+        "$(u)";
+  }
+#+end_src
+
+#+RESULTS:
+: R: 1
+: R: 2
+: R: 3
+: R: 4
+: R: 5
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:11d6f564-8a74-4041-9635-c24b72e065f8][function-unique()]] 

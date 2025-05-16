@@ -1,0 +1,103 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:892a5b10-082a-40cc-9e2e-67d25fdc8792][Function: classesmatching()]] 
+:CFEngine_PromiseTypes: [[id:431e6692-7600-4467-a0c0-609ea7c09a17][Promise type: classes]]  
+:ID:       eb73e463-b529-44c5-baac-9f2eefbba47a
+:end:
+#+title: Example illustrating bundle vs namespace class scope
+
+Classes defined as the result of a classes type promise in =common= bundles have
+a default scope of "namespace". Classes defined as the result of a classes type
+promise in =agent= bundles have a default scope of "bundle".
+
+This default can be overridden with the =scope= attribute.
+
+For example:
+
+#+BEGIN_SRC cfengine3
+  bundle common def
+  {
+    classes:
+        "def_namespace_scoped_aka_global_class"
+          expression => "any";
+
+        "def_bundle_scoped_aka_local_class"
+          expression => "any", scope => "bundle";
+
+  }
+  bundle agent main
+  {
+    classes:
+        "main_bundle_scoped_aka_local_class"
+          expression => "any";
+
+        "main_namespace_scoped_aka_global_class"
+          expression => "any",
+          scope => "namespace";
+  }
+#+END_SRC
+
+Classes defined as the result of a promise outcome defined by a =classes body=
+have a default scope of *=namespace=*. You can override this using the [[https://docs.cfengine.com/lts/reference-promise-types.html#scope][=scope=
+=classes body= attribute]].
+
+For example:
+
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+    commands:
+        "/bin/true"
+          classes => if_repaired("my_class"),
+          comment => "Different classes bodies use different scopes. Some allow
+                     you to pass the scope in as a parameter. Try the `results`
+                     body.";
+
+        "/bin/false"
+          classes => results("bundle", "my_bundle_scope_class_with_false"),
+          handle => "failed_promise_with_results_body";
+
+
+        "/bin/true"
+          classes => results("bundle", "my_bundle_scope_class_with_true"),
+          handle => "repaired_promise_with_results_body";
+
+    vars:
+      "classes" slist => classesmatching("my_.*");
+
+    reports:
+      "Class visible in $(this.bundle): '$(classes)'"
+        handle => "main_classes_report";
+
+    methods:
+      "another_bundle"
+        depends_on => { "main_classes_report" };
+
+   }
+
+  bundle agent another_bundle
+  {
+    vars:
+        "classes" slist => classesmatching("my_.*");
+
+    reports:
+        "Class visible in $(this.bundle): '$(classes)'"
+        handle => "another_bundle_classes_report";
+
+  }
+#+END_SRC
+
+#+RESULTS:
+#+BEGIN_EXAMPLE
+:    error: Finished command related to promiser '/bin/false' -- an error occurred, returned 1
+: R: Class visible in main: 'my_bundle_scope_class_with_true_repaired'
+: R: Class visible in main: 'my_bundle_scope_class_with_true_reached'
+: R: Class visible in main: 'my_bundle_scope_class_with_false_failed'
+: R: Class visible in main: 'my_bundle_scope_class_with_false_not_kept'
+: R: Class visible in main: 'my_bundle_scope_class_with_false_error'
+: R: Class visible in main: 'my_bundle_scope_class_with_false_reached'
+: R: Class visible in main: 'my_class'
+: R: Class visible in another_bundle: 'my_class'
+#+END_EXAMPLE
+
+

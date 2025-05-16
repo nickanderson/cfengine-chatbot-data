@@ -1,0 +1,36 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:34a5d10a-1982-4cf4-8250-d8eca595bccd][Function: findprocesses()]] [[id:7b2ad788-6a8d-4f1a-94e5-6947fd7e2431][Function: string_mustache()]]
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       e2dd552b-2fef-4955-9e6d-7faaff57fd4a
+:end:
+#+title: Example illustrating Finding processes that are running
+
+#+begin_src cfengine3 :tangle finding_processes_that_are_running.cf
+  bundle agent __main__
+  {
+    reports:
+        "findprocesses() returns:$(const.n)$(with)"
+          with => string_mustache( '{{%-top-}}', findprocesses( "emacs" ));
+
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: findprocesses() returns:
+[
+  {
+    "line": "nickanderson                      6617    3491    6617  0.0  0.0   5132   0      3200 ?           1 15:42       42:02 00:00:00 /home/nickanderson/.emacs.d/elpa/28.1/develop/emacsql-sqlite-20221013.1512/sqlite/emacsql-sqlite /home/nickanderson/.emacs.d/.cache/forge-database.sqlite",
+    "pid": 6617
+  },
+  {
+    "line": "nickanderson                      4017    3491    4017  0.1  0.0   7272   0      5576 ?           1 15:41       43:25 00:00:04 /home/nickanderson/.emacs.d/elpa/28.1/develop/emacsql-sqlite-20221013.1512/sqlite/emacsql-sqlite /home/nickanderson/.emacs.d/org-roam.db",
+    "pid": 4017
+  },
+  {
+    "line": "nickanderson                      3491    3448     993  6.2  4.5 898076   0    367312 ?           4 15:41       43:34 00:02:43 /usr/bin/emacs28",
+    "pid": 3491
+  }
+]
+#+end_example

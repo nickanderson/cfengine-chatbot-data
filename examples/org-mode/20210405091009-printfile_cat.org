@@ -1,0 +1,27 @@
+:PROPERTIES:
+:CREATED:  [2021-04-05 Mon 09:10]
+:ID:       4a1800a4-be1c-4ed7-b97c-2eb0aca013c0
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating body printfile cat
+#+roam_tags: CFEngine
+
+#+begin_src cfengine3 :tangle printfile.cf
+  bundle agent __main__
+  {
+    reports:
+      "I am $(this.promise_filename).";
+      "I contain" printfile => cat( $(this.promise_filename) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: I am $(this.policy_filename).
+: R: I contain
+: R: body file control{ inputs => { '$(sys.libdir)/stdlib.cf' };}
+: R: bundle agent __main__
+: R: {
+: R:   reports:
+: R:     "I am $(this.policy_filename).";
+: R:     "I contain" printfile => cat( $(this.promise_filename) );
+: R: }

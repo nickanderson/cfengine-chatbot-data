@@ -1,0 +1,69 @@
+:PROPERTIES:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:ID:       8ec78c89-09f9-4592-a093-4f2e0b5e90e5
+:CFEngine_Functions: [[id:98e8bd2d-aa17-436d-bbae-11e13ab6acc7][Function: parsestringarrayidx()]] [[id:4f9b79dc-b8cc-4fcf-bb74-09792aa3d9eb][Function: execresult()]] [[id:cb299172-277a-42de-a1c9-c82e54379e4e][Function: getindices()]] [[id:a4b316dc-e357-4292-a43e-3cac1a55b50c][Function: storejson()]] [[id:176a208f-384f-4543-aaf4-599d03cbfa5d][Function: mergedata()]]
+:CREATED:  [2021-07-20 Tue 11:31]
+:END:
+#+title: Example illustrating map hostname to hostkey by parsing cf-key -sN output
+
+I want to build a map of hostnames to hostkeys based on the data provided by ~cf-key -s~.
+
+You can use ~parsestringarrayidx()~ to parse a string into a data structure (classic array).
+~cf-key~ output to parse:
+
+#+begin_example
+  [root@hub ~]# cf-key -sN
+  Direction       IP      Name    Last connection Key
+  Incoming        192.168.33.4    -       Tue Jul 20 16:25:36 2021        SHA=341ca15d40ebb01936f2f8aa3298e89f1b7a2fb592c2401dc0de4403469c49fe
+  Outgoing        192.168.33.4    -       Tue Jul 20 16:30:55 2021        SHA=341ca15d40ebb01936f2f8aa3298e89f1b7a2fb592c2401dc0de4403469c49fe
+  Incoming        192.168.33.2    hub     Tue Jul 20 16:30:55 2021        SHA=503ef520e6fe7573246b38210b7d4e07b77eb77f6d0ff302eacbf67dac48cc4e
+  Outgoing        192.168.33.2    hub     Tue Jul 20 16:30:55 2021        SHA=503ef520e6fe7573246b38210b7d4e07b77eb77f6d0ff302eacbf67dac48cc4e
+  Incoming        192.168.33.3    host001 Tue Jul 20 16:26:42 2021        SHA=98c96717ac710a5567240ab82aec2bf4eaf8a35f91b41ad14f14e8be37cf26ab
+  Outgoing        192.168.33.3    host001 Tue Jul 20 16:30:55 2021        SHA=98c96717ac710a5567240ab82aec2bf4eaf8a35f91b41ad14f14e8be37cf26ab
+  Total Entries: 6
+#+end_example
+
+
+#+begin_src cfengine3 :tangle map_hostname_to_hostkey_by_parsing_cf_key_sn_output.cf
+  bundle agent __main__
+  {
+    vars:
+        "_results"
+          int => parsestringarrayidx(
+                                      _hostname_to_hostkey_map,                  # Classic array to hold parsed result
+                                      execresult("$(sys.cf_key) -sN", noshell),  # input
+                                      "^(Outgoing|Total|Direction)[^\n]*",       # comment
+                                      "\s+",                                     # split
+                                      inf,                                       # maxentries
+                                      inf);                                      # maxbytes
+
+        "_i" slist => getindices( _hostname_to_hostkey_map );
+
+        "hostname_to_hostkey_map[$(_hostname_to_hostkey_map[$(_i)][2])]"
+          string => "$(_hostname_to_hostkey_map[$(_i)][8])";
+
+    reports:
+        "$(with)" with => storejson( mergedata( hostname_to_hostkey_map ));
+        "WARNING: Not all hosts have reverse lookups. Some hosts are missing from this map."
+          if => some( "-", getindices( hostname_to_hostkey_map ) );
+
+      DEBUG::
+        "$(with)" with => storejson( mergedata( _hostname_to_hostkey_map ));
+  }
+#+end_src
+
+Execution Output:
+
+#+begin_example
+  [root@hub ~]# cf-agent -KIf ./t.cf
+  R: {
+    "-": "SHA=341ca15d40ebb01936f2f8aa3298e89f1b7a2fb592c2401dc0de4403469c49fe",
+    "host001": "SHA=98c96717ac710a5567240ab82aec2bf4eaf8a35f91b41ad14f14e8be37cf26ab",
+    "hub": "SHA=503ef520e6fe7573246b38210b7d4e07b77eb77f6d0ff302eacbf67dac48cc4e"
+  }
+  R: WARNING: Not all hosts have reverse lookups. Some hosts are missing from this map.
+#+end_example
+
+*Note:* Hosts without reverse DNS entries will be problematic as =-= is used in place of a hostname.
+
+In CFEngine Enterprise, there are other ways to get this information as well, for example the ~hostseen()~ and ~hostswithclass()~ functions can be executed on an enterprise hub and they can return a list of hostnames or IP addresses from hosts that have reported to the Enterprise Hub. Also, the /[[https://docs.cfengine.com/latest/reference-enterprise-api-ref-host.html][hosts API]]/ and /[[https://docs.cfengine.com/latest/reference-enterprise-api-ref-inventory.html][inventory API]]/ are also good sources for this information.

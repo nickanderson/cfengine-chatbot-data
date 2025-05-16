@@ -1,0 +1,72 @@
+#+TITLE: depends_on
+:PROPERTIES:
+:ID:       64fba05f-9e8e-4b87-bef3-56c9061f1311
+:END:
+:LOGBOOK:
+CLOCK: [2019-01-10 Thu 09:41]--[2019-01-10 Thu 09:41] =>  0:00
+:END:
+
+In CFEngine promises are executed in the /Normal Order/. 
+
+For example:
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent main
+  {
+    reports:
+      "First";
+      "Second";
+      "Third";
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: First
+: R: Second
+: R: Third
+
+The depends_on attribute can be used to delay a promise actuation until  one or more promises (identified by their handle) are seen to be /kept/ or /repaired/.
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent main
+  {
+    reports:
+      "First" handle => "first", depends_on => { "second" };
+      "Second" handle => "second", depends_on => { "third" };
+      "Third" handle => "third";
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: Third
+: R: Second
+: R: First
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent main
+  {
+    reports:
+      "First" handle => "first", depends_on => { "second" };
+      "Second" handle => "second", depends_on => { "third" };
+      "Third" handle => "third";
+  }
+#+END_SRC
+
+Note that it's possible to create a condition that will not be resolved.
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent main
+  {
+    reports:
+      "Classic chicken and egg problem";
+      "I have a chicken" handle => "chicken", depends_on => { "egg" };
+      "I have an Egg" handle => "egg", depends_on => { "chicken" };
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: Classic chicken and egg problem
+
+Note that /all/ dependancies must be considered /kept/ or /repaired/ before the promise will actuate.
+
+It's possible to implement similar behavior with classes. For example, the /results/ classes body from the stdlib  defines classes for /all/ promise outcomes.

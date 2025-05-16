@@ -1,0 +1,35 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:6b1cebe6-f5e7-4057-afad-ccabd6878565][Function: packageupdatesmatching()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][Promise type: classes]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       551d3f8c-7e72-4344-a6b2-c46d8527982b
+:CREATED:  [2023-04-20 Thu 14:19]
+:end:
+#+title: Example illustrating Does my platform's default pacakge manager have any updates available?
+
+Note: This is expected to be integrated into the MPF. It will not work as a standalone example (3.21.0):
+
+#+begin_src cfengine3 :tangle does_my_platform_s_default_pacakge_manager_have_any_updates_available.cf
+  bundle agent __main__
+  {
+    vars:
+
+        # What updates does the platform default package manager have ...
+        "package_updates"
+          data => packageupdatesmatching(".*", # package_regex
+                                         ".*", # version_regex
+                                         ".*", # arch_regex
+                                         # method_regex : If package_inventory in body common control is not set,
+                                         "$(default:package_module_knowledge.platform_default)");
+
+
+    classes:
+        "up_to_date"
+          expression => strcmp( 0, length( package_updates ) );
+
+    reports:
+        "We are $(with)up to date" with => ifelse( "up_to_date", "", "NOT " );
+
+  }
+#+end_src
+

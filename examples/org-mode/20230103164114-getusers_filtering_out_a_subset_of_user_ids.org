@@ -1,0 +1,26 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:5b7569fb-9d00-4e85-838a-6a8dddffce2a][Function: getusers()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:0dfced06-32c5-4cbd-80d6-9e0b99f9b953][Function: expandrange()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       1cd6bbc0-3f00-4b0d-9079-d7265ac5e5a1
+:CREATED:  [2023-01-03 Tue 16:42]
+:end:
+#+title: Example illustrating getusers() filtering out a subset of user ids
+
+the filters for getusers are comma separated strings.
+
+#+begin_src cfengine3 :tangle getusers_filtering_out_a_subset_of_user_ids.cf
+  bundle agent __main__
+  {
+    vars:
+      "users" slist => getusers( "", "");
+      "users_id_gt_999" slist => getusers( "", join( ",", expandrange( "[0-999]", 1 ) ) );
+  }
+#+end_src
+
+#+begin_example
+[root@hub masterfiles]# cf-agent -KIf ./example.cf --show-evaluated-vars=default:main\\.
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.users                        {"root","bin","daemon","adm","lp","sync","shutdown","halt","mail","operator","games","ftp","nobody","systemd-network","dbus","polkitd","rpc","tss","rpcuser","nfsnobody","sshd","postfix","chrony","vagrant","cfapache","cfpostgres"} source=promise
+default:main.users_id_gt_999              {"nfsnobody","vagrant"}                                     source=promise
+#+end_example

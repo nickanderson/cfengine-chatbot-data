@@ -1,0 +1,96 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]] [[id:582843be-0874-4dd8-ae2c-8a9512ca9d95][Function: not()]] 
+:ID:       a2173ac2-77c5-4bdc-909b-198e4180cf07
+:CREATED:  [2022-07-14 Thu 10:59]
+:end:
+#+title: Example illustrating Host specific data without using $(sys.workdir)/data/host_specific.json
+
+#+begin_quote
+This works but will give an error on all hosts where this augments file doesn't exist.
+#+end_quote
+
+#+begin_src json
+  {
+      "$(sys.inputdir)/augments/$(sys.uqhost).json": {
+          "variables": {
+              "cfengine_enterprise_federation:postgres_config.shared_buffers": {
+                  "value": "2560MB"
+              },
+              "cfengine_enterprise_federation:postgres_config.max_wal_size": {
+                  "value": "20480MB"
+              },
+              "cfengine_enterprise_federation:postgres_config.checkpoint_timeout": {
+                  "value": "30min"
+              }
+          }
+      },
+      "augments": [
+          "$(sys.inputdir)/augments/$(sys.uqhost).json"
+      ]
+  }
+#+end_src
+
+Right, you should expect to get errors like  =error: Could not load requested further augments from file '$(sys.uqhost).json'= if the file does not exist for a given host.
+
+#+begin_quote
+I see you support augments file, $(sys.workdir)/data/host_specific.json, but this is outside of source control support. What was the thought process for doing that?
+#+end_quote
+
+Right,  =$(sys.workdir)/data/host_specific.json= is outside of the policy, so it can change at a different rate. It's true that it's not version controlled, but you could have something make the directory a git repo and commit and push all the changes automatically. Something like that might eventually come by default.
+
+
+If you don't want to use =host_specific.json= as distributed from the hub, you can still achieve a host specific  data load without errors by using a stable filename and making sure that it has valid json.
+
+For example:
+
+#+begin_src json
+  {
+      "$(sys.inputdir)/augments/$(sys.uqhost).json": {
+          "variables": {
+              "cfengine_enterprise_federation:postgres_config.shared_buffers": {
+                  "value": "2560MB"
+              },
+              "cfengine_enterprise_federation:postgres_config.max_wal_size": {
+                  "value": "20480MB"
+              },
+              "cfengine_enterprise_federation:postgres_config.checkpoint_timeout": {
+                  "value": "30min"
+              }
+          }
+      },
+      "augments": [
+          "$(sys.workdir)/augments/custom-host-specific.json"
+      ]
+  }
+#+end_src
+
+Then, in your update policy you can take care of seeding that data.
+
+In this contrived example we expect there is a data directory next to the policy file and inside that data directory there are files for specific hosts named for the unqualified hostname. The policy simply makes sure that the right host specific file is in place and if no host specific data exists, then lay down a valid json file with no data.
+
+#+caption: Example Policy
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent custom_host_specific_data
+  {
+    vars:
+      "my_custom_host_specific_data"
+        string => "$(this.promise_dirname)/data/$(sys.uqhost).json";
+
+     files:
+      "$(sys.workdir)/augments/." create => "true";
+
+      "$(sys.workdir)/augments/custom-host-specific.json"
+        if => fileexists( $(my_custom_host_specific_data) ),
+        copy_from => local_dcp( $(my_custom_host_specific_data) ),
+        comment => "If we have host speific data, we want it in place for use";
+
+      "$(sys.workdir)/augments/custom-host-specific.json"
+        if => not( fileexists( $(my_custom_host_specific_data) ) ),
+        content => "{}",
+        comment => "If we do not have host speific data, we want to place an empty set to avoid errors";
+  }
+#+end_src
+
+Does that make sense?
+

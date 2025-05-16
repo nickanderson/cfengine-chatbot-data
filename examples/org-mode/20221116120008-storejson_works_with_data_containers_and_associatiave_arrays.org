@@ -1,0 +1,34 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes:
+:ID:       4b9de69c-7da2-4661-a993-85abeb2938fe
+:CREATED:  [2022-11-16 Wed 12:00]
+:end:
+#+title: Example illustrating storejson works with data containers and associatiave arrays
+
+#+begin_src cfengine3 :tangle storejson_works_with_data_containers_and_associatiave_arrays.cf
+  bundle agent __main__
+  {
+    vars:
+        "arr[one]" int => "1";
+        "arr[2]" string => "2";
+
+    reports:
+        "Directly: $(with)"
+          with => storejson( arr );
+
+        "With proper type: $(with)"
+          with => storejson( mergedata( arr ) );
+  }
+#+end_src
+
+#+RESULTS:
+: R: Directly: {
+:   "2": "2",
+:   "one": "1"
+: }
+: R: With proper type: {
+:   "2": "2",
+:   "one": "1"
+: }

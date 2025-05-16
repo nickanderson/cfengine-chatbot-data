@@ -1,0 +1,28 @@
+:PROPERTIES:
+:ID:       b2639877-ab48-417c-a8a8-d3cc23ff3256
+:CFEngine_Functions: [[id:52995d25-9583-41fa-8a27-e15a28186764][Function: cf_version_before()]]
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating cf_version_before()
+
+#+begin_src cfengine3 :tangle cf_version_before.cf
+  bundle agent __main__
+  {
+
+    reports:
+        "The current version of CFEngine ($(sys.cf_version)) was not released before 3.18.0"
+          unless => cf_version_before( "3.18.0" );
+
+        "The current version of CFEngine ($(sys.cf_version)) was not released before 3.3"
+          unless => cf_version_before( "3.3" );
+
+        "The current version of CFEngine ($(sys.cf_version)) was released before 4.3.2"
+          if => cf_version_before( "4.3.2" );
+  }
+#+end_src
+
+#+RESULTS:
+: R: The current version of CFEngine (3.18.1) was not released before 3.18.0
+: R: The current version of CFEngine (3.18.1) was not released before 3.3
+: R: The current version of CFEngine (3.18.1) was released before 4.3.2
+

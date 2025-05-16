@@ -1,0 +1,33 @@
+:PROPERTIES:
+:CREATED:  [2021-04-26 Mon 09:03]
+:ID:       dbd05edb-e33c-4363-9443-bd97fb2b7371
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Example illustrating conditional blocks in mustache
+#+roam_tags: CFEngine-example
+
+[[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+
+This small example illustrates the mustache syntax, showing that =^= is a negative match and =#= is a positive match.
+
+#+begin_src cfengine3 :tangle conditional_blocks_in_mustache.cf 
+  bundle agent __main__
+  {
+      reports:
+        "$(with)" with => string_mustache( concat( "CFEngine $(sys.cf_version)$(const.n)",
+                                                   "{{^classes.this_class_is_not_defined}}",
+                                                     "The class 'this_class_is_not_defined' is indeed, not defined",
+                                                   "{{/classes.this_class_is_not_defined}}$(const.n)",
+                                                   "{{#classes.cfengine}}",
+                                                     "The class 'cfengine' is defined.",
+                                                   "{{/classes.cfengine}}" ),
+                                           datastate() );
+  }
+#+end_src
+
+#+RESULTS:
+: R: CFEngine 3.18.0a.b248be4d0
+: The class 'this_class_is_not_defined' is indeed, not defined
+: The class 'cfengine' is defined.
+
+ 

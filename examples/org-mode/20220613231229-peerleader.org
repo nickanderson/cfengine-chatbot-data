@@ -1,0 +1,51 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:26180bd2-100a-46e8-b4d2-499497c77be1][Function: peerleader()]] [[id:b33fb268-729f-45fa-9d2c-a9aaa4f1c4d5][Function: peerleaders()]] [[id:13cf7a0c-c7ab-4f37-9011-933bd736174d][Function: peers()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]] 
+:ID:       c596d252-5438-4ddc-a817-5d6ff6058a27
+:end:
+#+title: Example illustrating peerleader()
+
+#+begin_src cfengine3 :tangle peerleader.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "demo";
+  }
+  bundle agent demo
+  {
+    reports:
+        "Peerleader: $(with)"
+          with => peerleader( '/tmp/hosts.dat', '', 3 ),
+          if => fileexists( '/tmp/hosts.dat' );
+
+        "Peerleaders: $(with)"
+          with => join( ", ", peerleaders( '/tmp/hosts.dat', '', 3 ) ),
+          if => fileexists( '/tmp/hosts.dat' );
+
+        "Peers: $(with)"
+          with => join( ", ", peers( '/tmp/hosts.dat', '', 3 ) ),
+          if => fileexists( '/tmp/hosts.dat' );
+
+  }
+  bundle agent init
+  {
+    files:
+        "/tmp/hosts.dat"
+          content => "host901
+  host902
+  host903
+  host905
+  $(sys.fqhost)
+  host906
+  host907
+  host908";
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: Peerleader: host905
+: R: Peerleaders: host901, host905, host907
+: R: Peers: host905, host906
+

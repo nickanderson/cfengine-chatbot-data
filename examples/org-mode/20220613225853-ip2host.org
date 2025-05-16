@@ -1,0 +1,23 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:31372dfd-d675-45b8-905b-5e75efd8153a][Function: ip2host()]] 
+:ID:       fa081f20-2717-4125-818f-857031419ec1
+:end:
+#+title: Example illustrating ip2host()
+
+#+begin_src cfengine3 :tangle ip2host.cf
+  bundle agent __main__
+  {
+    reports:
+        "8.8.8.8 == $(with)"
+            with => ip2host( "8.8.8.8" );
+        
+        "1.1.1.1 == $(with)"
+            with => ip2host( "1.1.1.1" );
+  }
+#+end_src
+
+#+RESULTS:
+: R: 8.8.8.8 == dns.google
+: R: 1.1.1.1 == one.one.one.one
+

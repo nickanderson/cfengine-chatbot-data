@@ -1,0 +1,35 @@
+:PROPERTIES:
+:ID:       7852468f-a8a3-46ae-8f87-cf1887803949
+:END:
+#+title: Example illustrating bundlesmatching()
+
+#+begin_src cfengine3 :include-stdlib nil :tangle bundlesmatching.cf 
+  bundle agent __main__
+  {
+
+    reports:
+        "bundlesmatching( '.*' ): $(with)"
+          with => join( ", ", bundlesmatching( '.*' ) );
+        
+        "bundlesmatching( '.*', 'my-tag' ): $(with)"
+          with => join( ", ", bundlesmatching( '.*', 'my-tag' ) );
+
+
+  }
+  bundle agent my_bundle
+  {
+  }
+  bundle agent your_bundle
+  {
+    meta:
+        "tags" slist => { "my-tag" };
+  }      
+#+end_src
+
+#+RESULTS:
+: R: bundlesmatching( '.*' ): default:your_bundle, default:my_bundle, default:main
+: R: bundlesmatching( '.*', 'my-tag' ): default:your_bundle
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:be2454de-2936-4d1a-b350-47ae1eb01a92][bundlesmatching()]]

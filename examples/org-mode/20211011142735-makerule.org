@@ -1,0 +1,71 @@
+:PROPERTIES:
+:ID:       c8f8c542-be14-4d0f-8224-55d40fd5659f
+:CREATED:  [2021-10-12 Tue 08:28]
+:END:
+#+title: Example illustrating makerule()
+
+Want to check if more than one file is newer than some target file? ~makerule()~ can help with that.
+
+#+caption: Set a class if any file in a list of files has been modified since a target file
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+      "source_files" slist => { "/tmp/file1.txt", "/tmp/file2.txt", "/tmp/file3.txt" };
+      "target_file" string => "/tmp/target";
+
+    classes:
+      "at_least_one_source_file_newer_than_target"
+        expression => makerule( $(target_file), @(source_files) );
+
+    reports:
+      at_least_one_source_file_newer_than_target::
+        "At least one of the source files ($(with)) is newer than the target ($(target_file))"
+          with => join( ", ", @(source_files) );
+
+      !at_least_one_source_file_newer_than_target::
+        "None of the source files ($(with)) is newer than the target ($(target_file))"
+          with => join( ", ", @(source_files) );
+  }
+#+end_src
+
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:8002f450-c465-4062-ab20-6d0c8314cac1][Function: makerule()]]
+- [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]]
+
+* Example without using makerule()
+:PROPERTIES:
+:ID:       88640d44-b20f-41bb-a73c-fb936d74f4f9
+:END:
+
+At least as of 3.18.0, the performance characteristics between ~makerule()~ and iteration don't seem to differ.
+
+#+caption: Set a class if any file in a list of files has been modified since a target file
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  bundle agent __main__
+  {
+    vars:
+      "source_files" slist => { "/tmp/file1.txt", "/tmp/file2.txt", "/tmp/file3.txt" };
+      "target_file" string => "/tmp/target";
+
+    classes:
+      "at_least_one_source_file_newer_than_target"
+        expression => isnewerthan( $(source_files), $(target_file) );
+
+    reports:
+      at_least_one_source_file_newer_than_target::
+        "At least one of the source files ($(with)) is newer than the target ($(target_file))"
+          with => join( ", ", @(source_files) );
+
+      !at_least_one_source_file_newer_than_target::
+        "None of the source files ($(with)) is newer than the target ($(target_file))"
+          with => join( ", ", @(source_files) );
+  }
+#+end_src
+
+** References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:a5c51696-d6e7-4c05-9bed-3ad34b4d423e][Function: isnewerthan()]]
+- [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]]
+

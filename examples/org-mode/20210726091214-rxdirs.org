@@ -1,0 +1,66 @@
+:PROPERTIES:
+:ID:       11854f79-d88b-46ee-a58e-362180b7b78f
+:CREATED:  [2021-07-26 Mon 09:59]
+:END:
+#+title: Example illustrating rxdirs
+
+#+caption: Example illustrating rxdirs behavior
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle rxdirs.cf
+  bundle agent __main__
+  # @brief Illustrating the behavior of rxdirs in perms bodies. Note, by default, when read is requested for a directory, execute is given as well.
+  {
+    vars:
+        "example_dirs" slist => {
+                                  "/tmp/rxdirs_example/rxdirs=default(true)-r",
+                                  "/tmp/rxdirs_example/rxdirs=default(true)-rx",
+                                  "/tmp/rxdirs_example/rxdirs=false-r",
+                                  "/tmp/rxdirs_example/rxdirs=false-rx",
+        };
+
+    files:
+        "$(example_dirs)/."
+          create => "true";
+
+        "/tmp/rxdirs_example/rxdirs=default(true)-r"
+          perms => example:m( 600 );
+
+        "/tmp/rxdirs_example/rxdirs=default(true)-rx"
+          perms => example:m( 700 );
+
+        "/tmp/rxdirs_example/rxdirs=false-r"
+          perms => example:m_rxdirs_off( 600 );
+
+        "/tmp/rxdirs_example/rxdirs=false-rx"
+          perms => example:m_rxdirs_off( 700 );
+
+    reports:
+        "$(example_dirs) modeoct='$(with)'"
+          with => filestat( $(example_dirs), modeoct );
+  }
+
+  body file control{ namespace => "example"; }
+
+  body perms m(mode)
+  # @brief Set the file mode
+  # @param mode The new mode
+  {
+          mode   => "$(mode)";
+  }
+  body perms m_rxdirs_off(mode)
+  # @brief Set the file mode, don't be clever and try to set +x on directory when +r is desired
+  # @param mode The new mode
+  {
+          inherit_from => m( $(mode) );
+          rxdirs => "false";
+  }
+#+end_src
+
+#+RESULTS:
+: R: /tmp/rxdirs_example/rxdirs=default(true)-r modeoct='40700'
+: R: /tmp/rxdirs_example/rxdirs=default(true)-rx modeoct='40700'
+: R: /tmp/rxdirs_example/rxdirs=false-r modeoct='40600'
+: R: /tmp/rxdirs_example/rxdirs=false-rx modeoct='40700'
+
+* Reference :noexport:
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+- [[id:4e90de3a-a792-40cf-8d83-3157d5317310][function-filestat().cf]]

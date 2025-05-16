@@ -1,0 +1,127 @@
+:PROPERTIES:
+:ID:       439bfe34-fbaf-4cc5-a0d8-f42bf2b43e08
+:CREATED:  [2022-04-06 Wed 13:49]
+:END:
+#+title: Example illustrating Test policy emitting jUnit formatted output
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both
+  body file control
+  { inputs => { "$(sys.libdir)/testing.cf" }; }
+  bundle agent __main__
+  {
+  
+    meta:
+        "ticket" string => "Zendesk #5647 https://cfengine.zendesk.com/agent/tickets/5647";
+  
+    methods:
+        '' usebundle => report("Initalizing Test Environment");
+        'init';
+  
+        '' usebundle => report("Testing implementation");
+        'delete_line_config';
+  
+        "pass/fail" usebundle => check;
+  }
+  bundle agent check
+  {
+    classes:
+       # diff
+       # An exit status of 0 means no differences were found, 1 means some
+       # differences were found, and 2 means trouble. Normally, differing binary
+       # files count as trouble, but this can be altered by using the -a or --text
+       # option, or the -q or --brief option.
+  
+  
+       "pass_test_case_1"
+        scope => "namespace",
+        expression => returnszero( "/bin/diff /tmp/delete_line.conf /tmp/delete_line.conf.expected", noshell);
+  
+       "pass_test_case_2"
+        expression => returnszero( "/bin/diff /tmp/delete_line.conf /tmp/delete_line.conf.unexpected", noshell);
+  
+    methods:
+  
+       any::
+  
+        "Case 1"
+          usebundle => testing_ok( "pass_test_case_1",
+                                   "/tmp/delet_line.conf had no difference from /tmp/delete_line.conf.expected so things are working as expected", "junit");
+  
+        "Case 2"
+          usebundle => testing_ok( "pass_test_case_2",
+                                   "/tmp/delet_line.conf had no difference from /tmp/delete_line.conf.unexpected so things are working as expected", "junit");
+  
+  
+        "Report Test Results" usebundle => testing_junit_report("");
+  
+  }
+  bundle agent report(unique_msg)
+  {
+    reports:
+        "* $(unique_msg)";
+  }
+  bundle agent init
+  
+  {
+    files:
+        "/tmp/delete_line.conf"
+          content => "I have lines
+  with stuff
+  AllowRoot: yes
+  but wait, there's more
+  Chroot: yes
+  ";
+        "/tmp/delete_line.conf.expected"
+          content => "I have lines
+  with stuff
+  but wait, there's more
+  Chroot: yes
+  ";
+        "/tmp/delete_line.conf.unexpected"
+          content => "I have lines
+  with stuff
+  but wait, there's more
+  Chroot: yes
+  Force a mis-match
+  ";
+  
+  "/tmp/config_changes_delete.json"
+        content => '
+  {
+          "202203": {
+                      "nscd_any": { "service_name": "none", "restart_type": "restart", "config_files": {
+                                                                                                         "1": { "file_path": "/tmp/delete_line.conf", "delete_line": "AllowRoot: yes" },
+                                                                                                         "2":  {"file_path": "/tmp/delete_line.conf", "delete_line": "Chroot: yes" }
+                      }
+                      }
+          }
+  }';
+  }
+  
+  bundle agent delete_line_config {
+    vars:
+      any::
+        "json_data_filename" string => "/tmp/config_changes_delete.json";
+  
+        "config_changes_delete_data"
+          data => readjson( "$(json_data_filename)", "500k" ),
+          if => fileexists( "$(json_data_filename)" );
+  
+    files:
+  
+      any::
+  
+        # "$(config_changes_delete[$(wanted_version)][$(list_of_packages)][config_files][$(config_data)][file_path])"
+        #   if => and("$(list_of_packages)_package_installed",
+        #             fileexists("$(config_changes_delete[$(wanted_version)][$(list_of_packages)][config_files][$(config_data)][file_path])")),
+        #   unless => isvariable("install_packages.package_configuration_blocker_$(list_of_packages)"),
+        #   edit_line => delete_lines_matching("$(config_changes_delete[$(wanted_version)][$(list_of_packages)][config_files][$(config_data)][delete_line])"),
+        #   edit_defaults => backup_timestamp,
+        #   classes => if_repaired("$(list_of_packages)_config_changed");
+  
+        "$(config_changes_delete_data[202203][nscd_any][config_files][1][file_path])"
+           edit_line => delete_lines_matching("$(config_changes_delete_data[202203][nscd_any][config_files][1][delete_line])");
+  }
+#+end_src
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

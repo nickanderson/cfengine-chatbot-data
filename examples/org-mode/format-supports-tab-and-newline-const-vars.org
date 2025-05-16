@@ -1,0 +1,27 @@
+#+TITLE: format() supports \t and \n for tab and newline characters
+:PROPERTIES:
+:CREATED:  2019-04-25
+:ID:       8f5d13ea-46fd-438e-b248-d4bad6d533c3
+:END:
+:LOGBOOK:
+CLOCK: [2019-04-25 Thu 09:14]--[2019-04-25 Thu 09:18] =>  0:04
+:END:
+
+#+BEGIN_SRC cfengine3 :include-stdlib t :verbose-mode nil :inform-mode nil :exports both
+  bundle agent example
+  {
+     reports:
+       "CFEngine $(sys.cf_version) $(with)tab" with => format( $(const.t) );
+        "CFEngine $(sys.cf_version) $(with)newline" with => format( $(const.n) );
+  }
+  bundle agent __main__
+  {
+    methods:
+        "example";
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: CFEngine 3.14.0a.ed0158a8e 	tab
+: R: CFEngine 3.14.0a.ed0158a8e 
+: newline

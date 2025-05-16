@@ -1,0 +1,1007 @@
+:PROPERTIES:
+:ID:       dd9d3048-e3bc-48fd-b167-e25ff252317e
+:END:
+#+TITLE: Default variable values in cfengine 3
+:LOGBOOK:
+CLOCK: [2018-05-25 Fri 21:38]--[2018-05-25 Fri 21:38] =>  0:00
+CLOCK: [2018-05-25 Fri 19:51]--[2018-05-25 Fri 21:29] =>  1:38
+CLOCK: [2018-05-25 Fri 17:33]--[2018-05-25 Fri 19:50] =>  2:17
+CLOCK: [2018-05-25 Fri 17:33]--[2018-05-25 Fri 17:33] =>  0:00
+:END:
+
+=defaults= are evaluated after =vars= and before =classes=. They promises
+provide a way to set a default a variable value and the possibility to override
+variable values that match a regular expression. =defaults= are not evaluated
+during pre-evaluation.
+
+In CFEngine undefined variables do not map to the empty string, they remain as
+variables for possible future expansion. Some variables might be defined but
+still contain unresolved variables. To handle this you will need to match the
+=$(abc)= form of the variables.
+
+Negative look-ahead ( =(?!expression)= ) regular expressions are very useful for
+=if_match_regex= to check against known valid patterns.
+
+#+Caption: Example overriding variables that match a regular expression
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+    defaults:
+
+        "number"
+          string => "0",
+          comment => "If this holds anything but digits we override it to a
+                      valid default";
+          if_match_regex =>
+
+            # Just to demonstrate how you can format regular expressions for readability wih inline documentation.
+            # Note that because (?msx) ignores whitespace you'll have to use `\s` and
+            # perhaps modifiers to express any whitespace, including new lines.
+            #  
+
+           "(?xms)
+              # Digits only
+              (?!
+                 [[:digit:]] # Digits
+                 +           # One or more times
+              ).*";          # Anyting
+
+      
+        "PermitRootLogin"
+          string => "no",
+          if_match_regex => "(prohibit-password|yes)",
+          comment => "We explicitly disallow root logins, but allow any other
+                      value (even invalid config options)";
+
+    vars:
+
+        "numbers"
+          comment => "We expect numbers",
+          string => "We use defaults to validate this"; 
+
+        "PermitRootLogin"
+          string => "forced-commands-only";
+
+    reports:
+        "number holds '$(number)'";
+        "PermitRootLogin holds '$(PermitRootLogin)'";
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: number holds '0'
+: R: forced-commands-only holds 'forced-commands-only'
+
+
+
+
+
+
+
+
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+    classes:
+        "classes_are_first" expression => not( isvariable( "main.classes_are_first" ) );
+        "vars_are_first" expression => isvariable( "main.vars_are_first" );
+
+    vars:
+        "classes_are_first" string => "Classes are first";
+        "vars_are_first" string => "Vars are first", if => not( "vars_are_first" );
+
+    reports:
+
+      "$(classes_are_first)"
+        if => "classes_are_first";
+      
+      "$(vars_are_first)"
+        if => "vars_are_first";
+  }
+
+  bundle agent terrible
+  {
+
+
+    defaults:
+
+        # We can have default values even if variables are not defined at all.
+        # This is equivalent to a variable definition, so not particularly useful.
+
+        "X" string => "I am a default value";
+        "Y" slist => { "I am a default list item 1", "I am a default list item 2" };
+        "a" string => "AAAAAAAAA",   if_match_regex => "";
+
+    methods:
+
+        # More useful, defaults if parameters are passed to a param bundle
+
+        "example" usebundle => mymethod("","bbb");
+
+    reports:
+
+        "The default value of X is $(X)";
+        "The default value of Y is $(Y)";
+  }
+
+  ###########################################################
+
+  bundle agent mymethod(a,b)
+
+  {
+    vars:
+
+        "no_return" string => "ok"; # readfile("/dont/exist","123");
+
+    defaults:
+
+        "a" string => "AAAAAAAAA",   if_match_regex => "";
+
+        "b" string => "BBBBBBBBB",   if_match_regex => "";
+
+        "no_return" string => "no such file";
+
+    reports:
+
+        "The value of a is $(a)";
+        "The value of b is $(b)";
+
+        "The value of no_return is $(no_return)";
+
+  }
+#+END_SRC
+
+#+RESULTS:
+: R: Vars are first
+
+> How do I know if vars or classes come first during cfengine evaluation?
+
+1) Read the documentation on Normal Order.
+2) Run the agent with --verbose or -v and grep for =pass 1=.
+
+  Write a test policy that has both vars and classes promises.
+  
+  #+Caption: =/tmp/test.cf=
+  #+BEGIN_SRC cfengine3
+    bundle agent main
+    {
+     vars:
+        "question" string => "What comes first, vars or classes?";
+    
+     classes:
+        "grep_verbose_output_for_pass_1" expression => "any";
+    }
+  #+END_SRC
+ 
+  Grep the verbose output.
+ 
+  #+Caption: Grepping for promises that run on the frist pass
+  #+BEGIN_SRC shell :exports both :results output :wrap EXAMPLE
+    chmod 600 /tmp/test.cf 
+    cf-agent -Kvf /tmp/test.cf | grep "pass 1"
+  #+END_SRC
+
+  #+RESULTS:
+  #+BEGIN_EXAMPLE
+   verbose: V: BEGIN variables (pass 1)
+   verbose: C: BEGIN classes / conditions (pass 1)
+  #+END_EXAMPLE
+
+3) Write policy that tells you.
+
+#+BEGIN_SRC cfengine3 :verbose t
+  bundle agent main
+  #@ brief Demonstrate if vars or classes come first
+  {
+
+    classes:
+        "classes_are_first" expression => not( isvariable( "main.classes_are_first" ) );
+        "vars_are_first" expression => isvariable( "main.vars_are_first" );
+
+    vars:
+        "classes_are_first" string => "Classes come first";
+        "vars_are_first" string => "Vars come first", if => not( "vars_are_first" );
+        "answer" string => ifelse( classes_are_first, "ifelse: Classes come first",
+                                   vars_are_first, "ifelse: Vars come first",
+                                   "Logic Error" );
+
+    reports:
+
+      "$(classes_are_first)"
+        if => "classes_are_first";
+
+      "$(vars_are_first)"
+        if => "vars_are_first";
+
+      "$(answer)";
+  }
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+ verbose: Could not open extension plugin 'cfengine-enterprise.so' from '/home/nickanderson/.cfagent/lib/cfengine-enterprise.so': (not installed)
+ verbose: Successfully opened extension plugin 'cfengine-enterprise.so' from '/var/cfengine/lib/cfengine-enterprise.so'
+ verbose: Successfully loaded extension plugin 'cfengine-enterprise.so'
+ verbose:  CFEngine Core 3.11.0
+ verbose: ----------------------------------------------------------------
+ verbose:  Initialization preamble 
+ verbose: ----------------------------------------------------------------
+ verbose: Default port for cfengine is 5308
+ verbose: Work directory is /home/nickanderson/.cfagent
+ verbose: '/home/nickanderson/.cfagent/bin' is a symbolic link, not a directory
+ verbose: Making sure that internal directories are private...
+ verbose: Checking integrity of the trusted workdir
+ verbose: Checking integrity of the state database
+ verbose: Checking integrity of the module directory
+ verbose: Checking integrity of the PKI directory
+ verbose: Loaded private key at '/home/nickanderson/.cfagent/ppkeys/localhost.priv'
+ verbose: Loaded public key '/home/nickanderson/.cfagent/ppkeys/localhost.pub'
+ verbose: Could not open file '/home/nickanderson/.cfagent/policy_server.dat' (fopen: No such file or directory)
+ verbose: Reference time set to 'Fri May 25 19:28:02 2018'
+ verbose: CFEngine Core 3.11.0 - ready
+ verbose: ----------------------------------------------------------------
+ verbose:  Environment discovery 
+ verbose: ----------------------------------------------------------------
+ verbose: Host name is: nickanderson-ThinkPad-W550s
+ verbose: Operating System Type is linux
+ verbose: Operating System Release is 4.15.0-20-lowlatency
+ verbose: Architecture = x86_64
+ verbose: CFEngine detected operating system description is linux
+ verbose: The time is now Fri May 25 19:28:02 2018
+ verbose: Additional hard class defined as: 64_bit
+ verbose: Additional hard class defined as: linux_4_15_0_20_lowlatency
+ verbose: Additional hard class defined as: linux_x86_64
+ verbose: Additional hard class defined as: linux_x86_64_4_15_0_20_lowlatency
+ verbose: GNU autoconf class from compile time: compiled_on_linux_gnu
+ verbose: Address given by nameserver: 127.0.1.1
+ verbose: No interface exception file /home/nickanderson/.cfagent/inputs/ignore_interfaces.rx
+ verbose: Interface 1: lo
+ verbose: Interface 2: wlan0
+ verbose: IP address of host set to 192.168.42.189
+ verbose: Interface 3: virbr0
+ verbose: Interface 4: docker0
+ verbose: Interface 5: vboxnet0
+ verbose: Interface 6: tun0
+ verbose: Trying to locate my IPv6 address
+ verbose: Found IPv6 address fe80::42:f9ff:feae:9438
+ verbose: Found IPv6 address fe80::9c7b:f8c7:90d9:f8b0
+ verbose: Found IPv6 address fe80::800:27ff:fe00:0
+ verbose: Found IPv6 address fe80::5ee0:c5ff:fe9f:f38f
+ verbose: Reading netstat info from /proc/net/netstat
+ verbose: Reading (null) info from /proc/net/route
+ verbose: Reading (null) info from /proc/net/snmp6
+ verbose: Reading (null) info from /proc/net/ipv6_route
+ verbose: Reading (null) info from /proc/net/if_inet6
+ verbose: Reading interfaces_data info from /proc/net/dev
+ verbose: Looking for environment from cf-monitord...
+ verbose: Unable to detect environment from cf-monitord
+ verbose: This appears to be a debian system.
+ verbose: Looking for Debian version...
+ verbose: Found 4 processors
+ verbose: Loading persistent classes
+ verbose: Loading JSON augments from '/home/nickanderson/org/def.json' (input dir '/home/nickanderson/org', input file '/home/nickanderson/org/cfengine3-5652M70'
+ verbose: could not load JSON augments from '/home/nickanderson/org/def.json'
+ verbose: Could not open file '/home/nickanderson/.cfagent/policy_server.dat' (fopen: No such file or directory)
+ verbose: This agent is not bootstrapped - can't find policy_server.dat in: /home/nickanderson/.cfagent
+ verbose: Input file is outside default repository, validating it
+ verbose: Input file '/home/nickanderson/org/cfengine3-5652M70' has changed since the last policy read attempt (file is newer than previous)
+ verbose: Input file is changed since last validation, validating it
+ verbose: Verifying the syntax of the inputs...
+ verbose: Checking policy with command '"/home/nickanderson/.cfagent/bin/cf-promises" -c "/home/nickanderson/org/cfengine3-5652M70"'
+ verbose: Saved policy validated marker file '/home/nickanderson/.cfagent/state/cf_promises_validated'
+ verbose: ----------------------------------------------------------------
+ verbose:  Loading policy 
+ verbose: ----------------------------------------------------------------
+ verbose: BEGIN parsing file: /home/nickanderson/org/cfengine3-5652M70
+ verbose: END   parsing file: /home/nickanderson/org/cfengine3-5652M70
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/stdlib.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/stdlib.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/guest_environments.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/guest_environments.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/databases.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/databases.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/cfe_internal.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/cfe_internal.cf
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/diff/*.diff' found match '/home/nickanderson/.cfagent/state/diff/classes.diff'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/diff/*.diff' found match '/home/nickanderson/.cfagent/state/diff/execution_log.diff'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/diff/*.diff' found match '/home/nickanderson/.cfagent/state/diff/lastseen.diff'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/diff/*.diff' found match '/home/nickanderson/.cfagent/state/diff/patch.diff'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/diff/*.diff' found match '/home/nickanderson/.cfagent/state/diff/software.diff'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/diff/*.diff' found match '/home/nickanderson/.cfagent/state/diff/variables.diff'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1440958511.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442345255.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442495421.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442495552.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442495565.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442495594.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442495759.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442684911.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1442684970.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1445964316.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1445964329.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/promise_log/*.csv' found match '/home/nickanderson/.cfagent/state/promise_log/1462658191.csv'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/previous_state/*.cache' found match '/home/nickanderson/.cfagent/state/previous_state/classes.cache'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/previous_state/*.cache' found match '/home/nickanderson/.cfagent/state/previous_state/execution_log.cache'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/previous_state/*.cache' found match '/home/nickanderson/.cfagent/state/previous_state/lastseen.cache'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/previous_state/*.cache' found match '/home/nickanderson/.cfagent/state/previous_state/patch.cache'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/previous_state/*.cache' found match '/home/nickanderson/.cfagent/state/previous_state/software.cache'
+ verbose: findfiles pattern '/home/nickanderson/.cfagent/state/previous_state/*.cache' found match '/home/nickanderson/.cfagent/state/previous_state/variables.cache'
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/commands.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/commands.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/cfe_internal_hub.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/cfe_internal_hub.cf
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/commands.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/packages.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/packages.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/paths.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/paths.cf
+ verbose: C:     +  Global class: _have_bin_systemctl
+ verbose: C:     +  Global class: _stdlib_has_path_getfacl
+ verbose: C:     +  Global class: _stdlib_has_path_logger
+ verbose: C:     +  Global class: _stdlib_has_path_diff
+ verbose: C:     +  Global class: _stdlib_has_path_curl
+ verbose: C:     +  Global class: _stdlib_has_path_netstat
+ verbose: C:     +  Global class: _stdlib_has_path_bc
+ verbose: C:     +  Global class: _stdlib_has_path_echo
+ verbose: C:     +  Global class: _stdlib_has_path_ip
+ verbose: C:     +  Global class: _stdlib_has_path_pgrep
+ verbose: C:     +  Global class: _stdlib_has_path_usermod
+ verbose: C:     +  Global class: _stdlib_has_path_update_alternatives
+ verbose: C:     +  Global class: _stdlib_has_path_aptitude
+ verbose: C:     +  Global class: _stdlib_has_path_df
+ verbose: C:     +  Global class: _stdlib_has_path_sed
+ verbose: C:     +  Global class: _stdlib_has_path_git
+ verbose: C:     +  Global class: _stdlib_has_path_service
+ verbose: C:     +  Global class: _stdlib_has_path_free
+ verbose: C:     +  Global class: _stdlib_has_path_sysctl
+ verbose: C:     +  Global class: _stdlib_has_path_test
+ verbose: C:     +  Global class: _stdlib_has_path_cksum
+ verbose: C:     +  Global class: _stdlib_has_path_wc
+ verbose: C:     +  Global class: _stdlib_has_path_find
+ verbose: C:     +  Global class: _stdlib_has_path_crontabs
+ verbose: C:     +  Global class: _stdlib_has_path_iptables_save
+ verbose: C:     +  Global class: _stdlib_has_path_egrep
+ verbose: C:     +  Global class: _stdlib_has_path_createrepo
+ verbose: C:     +  Global class: _stdlib_has_path_mailx
+ verbose: C:     +  Global class: _stdlib_has_path_svc
+ verbose: C:     +  Global class: _stdlib_has_path_ping
+ verbose: C:     +  Global class: _stdlib_has_path_groupmod
+ verbose: C:     +  Global class: _stdlib_has_path_domainname
+ verbose: C:     +  Global class: _stdlib_has_path_apt_cache
+ verbose: C:     +  Global class: _stdlib_has_path_init
+ verbose: C:     +  Global class: _stdlib_has_path_grep
+ verbose: C:     +  Global class: _stdlib_has_path_chkconfig
+ verbose: C:     +  Global class: _stdlib_has_path_getent
+ verbose: C:     +  Global class: _stdlib_has_path_groupadd
+ verbose: C:     +  Global class: _stdlib_has_path_groupdel
+ verbose: C:     +  Global class: _stdlib_has_path_dmidecode
+ verbose: C:     +  Global class: _stdlib_has_path_virtualenv
+ verbose: C:     +  Global class: _stdlib_has_path_dpkg_divert
+ verbose: C:     +  Global class: _stdlib_has_path_nologin
+ verbose: C:     +  Global class: _stdlib_has_path_npm
+ verbose: C:     +  Global class: _stdlib_has_path_perl
+ verbose: C:     +  Global class: _stdlib_has_path_update_rc_d
+ verbose: C:     +  Global class: _stdlib_has_path_hostname
+ verbose: C:     +  Global class: _stdlib_has_path_crontab
+ verbose: C:     +  Global class: _stdlib_has_path_awk
+ verbose: C:     +  Global class: _stdlib_has_path_dig
+ verbose: C:     +  Global class: _stdlib_has_path_useradd
+ verbose: C:     +  Global class: _stdlib_has_path_realpath
+ verbose: C:     +  Global class: _stdlib_has_path_systemctl
+ verbose: C:     +  Global class: _stdlib_has_path_wget
+ verbose: C:     +  Global class: _stdlib_has_path_ethtool
+ verbose: C:     +  Global class: _stdlib_has_path_apt_config
+ verbose: C:     +  Global class: _stdlib_has_path_cat
+ verbose: C:     +  Global class: _stdlib_has_path_tr
+ verbose: C:     +  Global class: _stdlib_has_path_userdel
+ verbose: C:     +  Global class: _stdlib_has_path_dpkg
+ verbose: C:     +  Global class: _stdlib_has_path_env
+ verbose: C:     +  Global class: _stdlib_has_path_tar
+ verbose: C:     +  Global class: _stdlib_has_path_apt_key
+ verbose: C:     +  Global class: _stdlib_has_path_lsattr
+ verbose: C:     +  Global class: _stdlib_has_path_iptables
+ verbose: C:     +  Global class: _stdlib_has_path_ifconfig
+ verbose: C:     +  Global class: _stdlib_has_path_dc
+ verbose: C:     +  Global class: _stdlib_has_path_apt_get
+ verbose: C:     +  Global class: _stdlib_has_path_lsof
+ verbose: C:     +  Global class: _stdlib_has_path_cut
+ verbose: C:     +  Global class: _stdlib_has_path_pip
+ verbose: C:     +  Global class: _stdlib_has_path_printf
+ verbose: C:     +  Global class: _stdlib_has_path_shadow
+ verbose: C:     +  Global class: _stdlib_has_path_sort
+ verbose: C:     +  Global class: _stdlib_has_path_ls
+ verbose: C:     +  Global class: _stdlib_path_exists_getfacl
+ verbose: C:     +  Global class: _stdlib_path_exists_logger
+ verbose: C:     +  Global class: _stdlib_path_exists_diff
+ verbose: C:     +  Global class: _stdlib_path_exists_curl
+ verbose: C:     +  Global class: _stdlib_path_exists_netstat
+ verbose: C:     +  Global class: _stdlib_path_exists_bc
+ verbose: C:     +  Global class: _stdlib_path_exists_echo
+ verbose: C:     +  Global class: _stdlib_path_exists_ip
+ verbose: C:     +  Global class: _stdlib_path_exists_pgrep
+ verbose: C:     +  Global class: _stdlib_path_exists_usermod
+ verbose: C:     +  Global class: _stdlib_path_exists_update_alternatives
+ verbose: C:     +  Global class: _stdlib_path_exists_df
+ verbose: C:     +  Global class: _stdlib_path_exists_sed
+ verbose: C:     +  Global class: _stdlib_path_exists_git
+ verbose: C:     +  Global class: _stdlib_path_exists_service
+ verbose: C:     +  Global class: _stdlib_path_exists_free
+ verbose: C:     +  Global class: _stdlib_path_exists_sysctl
+ verbose: C:     +  Global class: _stdlib_path_exists_test
+ verbose: C:     +  Global class: _stdlib_path_exists_cksum
+ verbose: C:     +  Global class: _stdlib_path_exists_wc
+ verbose: C:     +  Global class: _stdlib_path_exists_find
+ verbose: C:     +  Global class: _stdlib_path_exists_crontabs
+ verbose: C:     +  Global class: _stdlib_path_exists_iptables_save
+ verbose: C:     +  Global class: _stdlib_path_exists_egrep
+ verbose: C:     +  Global class: _stdlib_path_exists_svc
+ verbose: C:     +  Global class: _stdlib_path_exists_ping
+ verbose: C:     +  Global class: _stdlib_path_exists_groupmod
+ verbose: C:     +  Global class: _stdlib_path_exists_domainname
+ verbose: C:     +  Global class: _stdlib_path_exists_apt_cache
+ verbose: C:     +  Global class: _stdlib_path_exists_init
+ verbose: C:     +  Global class: _stdlib_path_exists_grep
+ verbose: C:     +  Global class: _stdlib_path_exists_getent
+ verbose: C:     +  Global class: _stdlib_path_exists_groupadd
+ verbose: C:     +  Global class: _stdlib_path_exists_groupdel
+ verbose: C:     +  Global class: _stdlib_path_exists_dmidecode
+ verbose: C:     +  Global class: _stdlib_path_exists_dpkg_divert
+ verbose: C:     +  Global class: _stdlib_path_exists_nologin
+ verbose: C:     +  Global class: _stdlib_path_exists_npm
+ verbose: C:     +  Global class: _stdlib_path_exists_perl
+ verbose: C:     +  Global class: _stdlib_path_exists_update_rc_d
+ verbose: C:     +  Global class: _stdlib_path_exists_hostname
+ verbose: C:     +  Global class: _stdlib_path_exists_crontab
+ verbose: C:     +  Global class: _stdlib_path_exists_awk
+ verbose: C:     +  Global class: _stdlib_path_exists_dig
+ verbose: C:     +  Global class: _stdlib_path_exists_useradd
+ verbose: C:     +  Global class: _stdlib_path_exists_realpath
+ verbose: C:     +  Global class: _stdlib_path_exists_wget
+ verbose: C:     +  Global class: _stdlib_path_exists_ethtool
+ verbose: C:     +  Global class: _stdlib_path_exists_apt_config
+ verbose: C:     +  Global class: _stdlib_path_exists_cat
+ verbose: C:     +  Global class: _stdlib_path_exists_tr
+ verbose: C:     +  Global class: _stdlib_path_exists_userdel
+ verbose: C:     +  Global class: _stdlib_path_exists_dpkg
+ verbose: C:     +  Global class: _stdlib_path_exists_env
+ verbose: C:     +  Global class: _stdlib_path_exists_tar
+ verbose: C:     +  Global class: _stdlib_path_exists_apt_key
+ verbose: C:     +  Global class: _stdlib_path_exists_lsattr
+ verbose: C:     +  Global class: _stdlib_path_exists_iptables
+ verbose: C:     +  Global class: _stdlib_path_exists_ifconfig
+ verbose: C:     +  Global class: _stdlib_path_exists_dc
+ verbose: C:     +  Global class: _stdlib_path_exists_apt_get
+ verbose: C:     +  Global class: _stdlib_path_exists_lsof
+ verbose: C:     +  Global class: _stdlib_path_exists_cut
+ verbose: C:     +  Global class: _stdlib_path_exists_pip
+ verbose: C:     +  Global class: _stdlib_path_exists_printf
+ verbose: C:     +  Global class: _stdlib_path_exists_shadow
+ verbose: C:     +  Global class: _stdlib_path_exists_sort
+ verbose: C:     +  Global class: _stdlib_path_exists_ls
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/files.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/files.cf
+ verbose: sort: argument 'default:insert_ini_section.indeces' does not resolve to a container or a list or a CFEngine array
+ verbose: sort: argument 'default:insert_ini_section.indeces' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/testing.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/testing.cf
+ verbose: Skipping iteration since variable 'passed' resolves to an empty list
+ verbose: Skipping iteration since variable 'failed' resolves to an empty list
+ verbose: Skipping iteration since variable 'skipped' resolves to an empty list
+ verbose: Skipping iteration since variable 'todo' resolves to an empty list
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/monitor.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/monitor.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/files.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/storage.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/storage.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/processes.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/processes.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/cfengine_enterprise_hub_ha.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/cfengine_enterprise_hub_ha.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/edit_xml.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/edit_xml.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/users.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/users.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/bundles.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/bundles.cf
+ verbose: length: argument 'default:run_ifdefined.bundlesfound' does not resolve to a container or a list or a CFEngine array
+ verbose: length: argument 'default:run_ifdefined.bundlesfound' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/paths.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/files.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/commands.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/paths.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/services.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/services.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/common.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/paths.cf
+ verbose: Skipping loading of duplicate policy file /home/nickanderson/.cfagent/inputs/lib/commands.cf
+ verbose: BEGIN parsing file: /home/nickanderson/.cfagent/inputs/lib/reports.cf
+ verbose: END   parsing file: /home/nickanderson/.cfagent/inputs/lib/reports.cf
+ verbose: Running full policy integrity checks
+ verbose: ----------------------------------------------------------------
+ verbose: PREFIX LEGEND:
+ verbose:  V: variable or parameter new definition in scope
+ verbose:  C: class/context new definition 
+ verbose:  B: bundle start/end execution marker
+ verbose:  P: promise execution output 
+ verbose:  A: accounting output 
+ verbose:  T: time measurement for stated object (promise or bundle)
+ verbose: ----------------------------------------------------------------
+ verbose: ----------------------------------------------------------------
+ verbose: BEGIN Discovered hard classes:
+ verbose: C: discovered hard class 127_0_0_1
+ verbose: C: discovered hard class 172_17_0_1
+ verbose: C: discovered hard class 172_27_224_201
+ verbose: C: discovered hard class 192_168_122_1
+ verbose: C: discovered hard class 192_168_33_1
+ verbose: C: discovered hard class 192_168_42_189
+ verbose: C: discovered hard class 4_cpus
+ verbose: C: discovered hard class 64_bit
+ verbose: C: discovered hard class Day25
+ verbose: C: discovered hard class Evening
+ verbose: C: discovered hard class Friday
+ verbose: C: discovered hard class GMT_Day26
+ verbose: C: discovered hard class GMT_Hr0
+ verbose: C: discovered hard class GMT_Hr00
+ verbose: C: discovered hard class GMT_Hr00_Q2
+ verbose: C: discovered hard class GMT_Lcycle_2
+ verbose: C: discovered hard class GMT_May
+ verbose: C: discovered hard class GMT_Min25_30
+ verbose: C: discovered hard class GMT_Min28
+ verbose: C: discovered hard class GMT_Night
+ verbose: C: discovered hard class GMT_Q2
+ verbose: C: discovered hard class GMT_Saturday
+ verbose: C: discovered hard class GMT_Yr2018
+ verbose: C: discovered hard class Hr19
+ verbose: C: discovered hard class Hr19_Q2
+ verbose: C: discovered hard class Lcycle_2
+ verbose: C: discovered hard class May
+ verbose: C: discovered hard class Min25_30
+ verbose: C: discovered hard class Min28
+ verbose: C: discovered hard class PK_SHA_43c979e264924d0b4a2d3b568d71ab8c768ef63487670f2c51cd85e8cec63834
+ verbose: C: discovered hard class Q2
+ verbose: C: discovered hard class Yr2018
+ verbose: C: discovered hard class agent
+ verbose: C: discovered hard class any
+ verbose: C: discovered hard class cfengine
+ verbose: C: discovered hard class cfengine_3
+ verbose: C: discovered hard class cfengine_3_11
+ verbose: C: discovered hard class cfengine_3_11_0
+ verbose: C: discovered hard class compiled_on_linux_gnu
+ verbose: C: discovered hard class debian
+ verbose: C: discovered hard class debian_buster
+ verbose: C: discovered hard class enterprise
+ verbose: C: discovered hard class enterprise_3
+ verbose: C: discovered hard class enterprise_3_11
+ verbose: C: discovered hard class enterprise_3_11_0
+ verbose: C: discovered hard class enterprise_edition
+ verbose: C: discovered hard class fe80__42_f9ff_feae_9438
+ verbose: C: discovered hard class fe80__5ee0_c5ff_fe9f_f38f
+ verbose: C: discovered hard class fe80__800_27ff_fe00_0
+ verbose: C: discovered hard class fe80__9c7b_f8c7_90d9_f8b0
+ verbose: C: discovered hard class feature
+ verbose: C: discovered hard class feature_curl
+ verbose: C: discovered hard class feature_def
+ verbose: C: discovered hard class feature_def_json
+ verbose: C: discovered hard class feature_def_json_preparse
+ verbose: C: discovered hard class feature_xml
+ verbose: C: discovered hard class feature_yaml
+ verbose: C: discovered hard class inform_mode
+ verbose: C: discovered hard class ipv4_127
+ verbose: C: discovered hard class ipv4_127_0
+ verbose: C: discovered hard class ipv4_127_0_0
+ verbose: C: discovered hard class ipv4_127_0_0_1
+ verbose: C: discovered hard class ipv4_172
+ verbose: C: discovered hard class ipv4_172_17
+ verbose: C: discovered hard class ipv4_172_17_0
+ verbose: C: discovered hard class ipv4_172_17_0_1
+ verbose: C: discovered hard class ipv4_172_27
+ verbose: C: discovered hard class ipv4_172_27_224
+ verbose: C: discovered hard class ipv4_172_27_224_201
+ verbose: C: discovered hard class ipv4_192
+ verbose: C: discovered hard class ipv4_192_168
+ verbose: C: discovered hard class ipv4_192_168_122
+ verbose: C: discovered hard class ipv4_192_168_122_1
+ verbose: C: discovered hard class ipv4_192_168_33
+ verbose: C: discovered hard class ipv4_192_168_33_1
+ verbose: C: discovered hard class ipv4_192_168_42
+ verbose: C: discovered hard class ipv4_192_168_42_189
+ verbose: C: discovered hard class ipv4_gw_172_27_224_129
+ verbose: C: discovered hard class ipv4_gw_192_168_42_1
+ verbose: C: discovered hard class linux
+ verbose: C: discovered hard class linux_4_15_0_20_lowlatency
+ verbose: C: discovered hard class linux_x86_64
+ verbose: C: discovered hard class linux_x86_64_4_15_0_20_lowlatency
+ verbose: C: discovered hard class linux_x86_64_4_15_0_20_lowlatency__21_Ubuntu_SMP_PREEMPT_Tue_Apr_24_07_52_58_UTC_2018
+ verbose: C: discovered hard class mac_00_00_00_00_00_00
+ verbose: C: discovered hard class mac_02_42_f9_ae_94_38
+ verbose: C: discovered hard class mac_0a_00_27_00_00_00
+ verbose: C: discovered hard class mac_52_54_00_6b_62_06
+ verbose: C: discovered hard class mac_5c_e0_c5_9f_f3_8f
+ verbose: C: discovered hard class net_iface_docker0
+ verbose: C: discovered hard class net_iface_lo
+ verbose: C: discovered hard class net_iface_tun0
+ verbose: C: discovered hard class net_iface_vboxnet0
+ verbose: C: discovered hard class net_iface_virbr0
+ verbose: C: discovered hard class net_iface_wlan0
+ verbose: C: discovered hard class nickanderson_thinkpad_w550s
+ verbose: C: discovered hard class nova
+ verbose: C: discovered hard class nova_3
+ verbose: C: discovered hard class nova_3_11
+ verbose: C: discovered hard class nova_3_11_0
+ verbose: C: discovered hard class nova_edition
+ verbose: C: discovered hard class systemd
+ verbose: C: discovered hard class ubuntu
+ verbose: C: discovered hard class ubuntu_18
+ verbose: C: discovered hard class ubuntu_18_4
+ verbose: C: discovered hard class verbose_mode
+ verbose: C: discovered hard class x86_64
+ verbose: END Discovered hard classes
+ verbose: ----------------------------------------------------------------
+ verbose: BEGIN initial soft classes:
+ verbose: C: added soft class _have_bin_systemctl
+ verbose: C: added soft class _stdlib_has_path_apt_cache
+ verbose: C: added soft class _stdlib_has_path_apt_config
+ verbose: C: added soft class _stdlib_has_path_apt_get
+ verbose: C: added soft class _stdlib_has_path_apt_key
+ verbose: C: added soft class _stdlib_has_path_aptitude
+ verbose: C: added soft class _stdlib_has_path_awk
+ verbose: C: added soft class _stdlib_has_path_bc
+ verbose: C: added soft class _stdlib_has_path_cat
+ verbose: C: added soft class _stdlib_has_path_chkconfig
+ verbose: C: added soft class _stdlib_has_path_cksum
+ verbose: C: added soft class _stdlib_has_path_createrepo
+ verbose: C: added soft class _stdlib_has_path_crontab
+ verbose: C: added soft class _stdlib_has_path_crontabs
+ verbose: C: added soft class _stdlib_has_path_curl
+ verbose: C: added soft class _stdlib_has_path_cut
+ verbose: C: added soft class _stdlib_has_path_dc
+ verbose: C: added soft class _stdlib_has_path_df
+ verbose: C: added soft class _stdlib_has_path_diff
+ verbose: C: added soft class _stdlib_has_path_dig
+ verbose: C: added soft class _stdlib_has_path_dmidecode
+ verbose: C: added soft class _stdlib_has_path_domainname
+ verbose: C: added soft class _stdlib_has_path_dpkg
+ verbose: C: added soft class _stdlib_has_path_dpkg_divert
+ verbose: C: added soft class _stdlib_has_path_echo
+ verbose: C: added soft class _stdlib_has_path_egrep
+ verbose: C: added soft class _stdlib_has_path_env
+ verbose: C: added soft class _stdlib_has_path_ethtool
+ verbose: C: added soft class _stdlib_has_path_find
+ verbose: C: added soft class _stdlib_has_path_free
+ verbose: C: added soft class _stdlib_has_path_getent
+ verbose: C: added soft class _stdlib_has_path_getfacl
+ verbose: C: added soft class _stdlib_has_path_git
+ verbose: C: added soft class _stdlib_has_path_grep
+ verbose: C: added soft class _stdlib_has_path_groupadd
+ verbose: C: added soft class _stdlib_has_path_groupdel
+ verbose: C: added soft class _stdlib_has_path_groupmod
+ verbose: C: added soft class _stdlib_has_path_hostname
+ verbose: C: added soft class _stdlib_has_path_ifconfig
+ verbose: C: added soft class _stdlib_has_path_init
+ verbose: C: added soft class _stdlib_has_path_ip
+ verbose: C: added soft class _stdlib_has_path_iptables
+ verbose: C: added soft class _stdlib_has_path_iptables_save
+ verbose: C: added soft class _stdlib_has_path_logger
+ verbose: C: added soft class _stdlib_has_path_ls
+ verbose: C: added soft class _stdlib_has_path_lsattr
+ verbose: C: added soft class _stdlib_has_path_lsof
+ verbose: C: added soft class _stdlib_has_path_mailx
+ verbose: C: added soft class _stdlib_has_path_netstat
+ verbose: C: added soft class _stdlib_has_path_nologin
+ verbose: C: added soft class _stdlib_has_path_npm
+ verbose: C: added soft class _stdlib_has_path_perl
+ verbose: C: added soft class _stdlib_has_path_pgrep
+ verbose: C: added soft class _stdlib_has_path_ping
+ verbose: C: added soft class _stdlib_has_path_pip
+ verbose: C: added soft class _stdlib_has_path_printf
+ verbose: C: added soft class _stdlib_has_path_realpath
+ verbose: C: added soft class _stdlib_has_path_sed
+ verbose: C: added soft class _stdlib_has_path_service
+ verbose: C: added soft class _stdlib_has_path_shadow
+ verbose: C: added soft class _stdlib_has_path_sort
+ verbose: C: added soft class _stdlib_has_path_svc
+ verbose: C: added soft class _stdlib_has_path_sysctl
+ verbose: C: added soft class _stdlib_has_path_systemctl
+ verbose: C: added soft class _stdlib_has_path_tar
+ verbose: C: added soft class _stdlib_has_path_test
+ verbose: C: added soft class _stdlib_has_path_tr
+ verbose: C: added soft class _stdlib_has_path_update_alternatives
+ verbose: C: added soft class _stdlib_has_path_update_rc_d
+ verbose: C: added soft class _stdlib_has_path_useradd
+ verbose: C: added soft class _stdlib_has_path_userdel
+ verbose: C: added soft class _stdlib_has_path_usermod
+ verbose: C: added soft class _stdlib_has_path_virtualenv
+ verbose: C: added soft class _stdlib_has_path_wc
+ verbose: C: added soft class _stdlib_has_path_wget
+ verbose: C: added soft class _stdlib_path_exists_apt_cache
+ verbose: C: added soft class _stdlib_path_exists_apt_config
+ verbose: C: added soft class _stdlib_path_exists_apt_get
+ verbose: C: added soft class _stdlib_path_exists_apt_key
+ verbose: C: added soft class _stdlib_path_exists_awk
+ verbose: C: added soft class _stdlib_path_exists_bc
+ verbose: C: added soft class _stdlib_path_exists_cat
+ verbose: C: added soft class _stdlib_path_exists_cksum
+ verbose: C: added soft class _stdlib_path_exists_crontab
+ verbose: C: added soft class _stdlib_path_exists_crontabs
+ verbose: C: added soft class _stdlib_path_exists_curl
+ verbose: C: added soft class _stdlib_path_exists_cut
+ verbose: C: added soft class _stdlib_path_exists_dc
+ verbose: C: added soft class _stdlib_path_exists_df
+ verbose: C: added soft class _stdlib_path_exists_diff
+ verbose: C: added soft class _stdlib_path_exists_dig
+ verbose: C: added soft class _stdlib_path_exists_dmidecode
+ verbose: C: added soft class _stdlib_path_exists_domainname
+ verbose: C: added soft class _stdlib_path_exists_dpkg
+ verbose: C: added soft class _stdlib_path_exists_dpkg_divert
+ verbose: C: added soft class _stdlib_path_exists_echo
+ verbose: C: added soft class _stdlib_path_exists_egrep
+ verbose: C: added soft class _stdlib_path_exists_env
+ verbose: C: added soft class _stdlib_path_exists_ethtool
+ verbose: C: added soft class _stdlib_path_exists_find
+ verbose: C: added soft class _stdlib_path_exists_free
+ verbose: C: added soft class _stdlib_path_exists_getent
+ verbose: C: added soft class _stdlib_path_exists_getfacl
+ verbose: C: added soft class _stdlib_path_exists_git
+ verbose: C: added soft class _stdlib_path_exists_grep
+ verbose: C: added soft class _stdlib_path_exists_groupadd
+ verbose: C: added soft class _stdlib_path_exists_groupdel
+ verbose: C: added soft class _stdlib_path_exists_groupmod
+ verbose: C: added soft class _stdlib_path_exists_hostname
+ verbose: C: added soft class _stdlib_path_exists_ifconfig
+ verbose: C: added soft class _stdlib_path_exists_init
+ verbose: C: added soft class _stdlib_path_exists_ip
+ verbose: C: added soft class _stdlib_path_exists_iptables
+ verbose: C: added soft class _stdlib_path_exists_iptables_save
+ verbose: C: added soft class _stdlib_path_exists_logger
+ verbose: C: added soft class _stdlib_path_exists_ls
+ verbose: C: added soft class _stdlib_path_exists_lsattr
+ verbose: C: added soft class _stdlib_path_exists_lsof
+ verbose: C: added soft class _stdlib_path_exists_netstat
+ verbose: C: added soft class _stdlib_path_exists_nologin
+ verbose: C: added soft class _stdlib_path_exists_npm
+ verbose: C: added soft class _stdlib_path_exists_perl
+ verbose: C: added soft class _stdlib_path_exists_pgrep
+ verbose: C: added soft class _stdlib_path_exists_ping
+ verbose: C: added soft class _stdlib_path_exists_pip
+ verbose: C: added soft class _stdlib_path_exists_printf
+ verbose: C: added soft class _stdlib_path_exists_realpath
+ verbose: C: added soft class _stdlib_path_exists_sed
+ verbose: C: added soft class _stdlib_path_exists_service
+ verbose: C: added soft class _stdlib_path_exists_shadow
+ verbose: C: added soft class _stdlib_path_exists_sort
+ verbose: C: added soft class _stdlib_path_exists_svc
+ verbose: C: added soft class _stdlib_path_exists_sysctl
+ verbose: C: added soft class _stdlib_path_exists_tar
+ verbose: C: added soft class _stdlib_path_exists_test
+ verbose: C: added soft class _stdlib_path_exists_tr
+ verbose: C: added soft class _stdlib_path_exists_update_alternatives
+ verbose: C: added soft class _stdlib_path_exists_update_rc_d
+ verbose: C: added soft class _stdlib_path_exists_useradd
+ verbose: C: added soft class _stdlib_path_exists_userdel
+ verbose: C: added soft class _stdlib_path_exists_usermod
+ verbose: C: added soft class _stdlib_path_exists_wc
+ verbose: C: added soft class _stdlib_path_exists_wget
+ verbose: END initial soft classes
+ verbose: ----------------------------------------------------------------
+ verbose:  Preliminary variable/class-context convergence 
+ verbose: ----------------------------------------------------------------
+ verbose: Skipping promise '$(classes_are_first)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(vars_are_first)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'diff_files', because 'unless' is defined
+ verbose: Skipping promise 'promise_log_files', because 'unless' is defined
+ verbose: Skipping promise 'previous_state_files', because 'unless' is defined
+ verbose: Skipping promise 'untracked_files', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): This bundle does not support Windows' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping promise 'DEBUG $(this.bundle): sorry, can't do file-based installs on $(sys.os)' because 'if'/'ifvarclass' is not defined
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: Embedded function argument does not resolve to a name - probably too many evaluation levels for 'escape'
+ verbose: sort: argument 'default:insert_ini_section.indeces' does not resolve to a container or a list or a CFEngine array
+ verbose: sort: argument 'default:insert_ini_section.indeces' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping promise '$(line)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): deleting $(file) with delete => tidy' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): copying directory $(from) to $(to)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): copying file $(from) to $(to)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): creating $(file) with contents '$(str)'' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): creating $(file) with contents '$(summary)'' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): creating $(file) with contents '$(str)', mode '$(mode)', owner '$(owner)' and group '$(group)'' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): creating $(file) with contents '$(summary)', mode '$(mode)', owner '$(owner)' and group '$(group)'' because 'if'/'ifvarclass' is not defined
+ verbose: mergedata: argument 'default:file_make_mustache.data' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping promise 'DEBUG $(this.bundle): rendering $(file) with template '$(template)'' because 'if'/'ifvarclass' is not defined
+ verbose: mergedata: argument 'default:file_make_mustache_with_perms.data' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping promise 'DEBUG $(this.bundle): rendering $(file) with template '$(template)'' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): creating empty $(file) with 0 size' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): $(link) will be a hard link to $(target)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): $(link) will be a symlink to $(target)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(const.n)ok $(message)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(const.n)not ok $(message)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping iteration since variable 'passed' resolves to an empty list
+ verbose: Skipping iteration since variable 'failed' resolves to an empty list
+ verbose: Skipping iteration since variable 'skipped' resolves to an empty list
+ verbose: Skipping iteration since variable 'todo' resolves to an empty list
+ verbose: Skipping promise '$(this.bundle): $(method) $(host):$(port)/$(uri) got 200 OK' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(this.bundle): $(method) $(host):$(port)/$(uri) did *not* get 200 OK' because 'if'/'ifvarclass' is not defined
+ verbose: length: argument 'default:run_ifdefined.bundlesfound' does not resolve to a container or a list or a CFEngine array
+ verbose: length: argument 'default:run_ifdefined.bundlesfound' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping promise 'any' because 'if'/'ifvarclass' is not defined
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: reglist: argument 'default:standard_services.systemd_service_info' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping promise '$(default[cmd][$(default[init])])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(default[cmd][$(inits)])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(default[cmd][$(inits)])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(default[cmd][$(inits)])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(default[cmd][$(inits)])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): Using init system $(inits)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): Using init system $(inits)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): Using init system $(inits)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): Using init system $(inits)' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): No init system is set, using $(default[init])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The service $(service) needs to be started' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The default service pattern was used: $(default[pattern])' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The stopcommand is NOT provided, using default' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The startcommand is NOT provided, using default' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The restartcommand is NOT provided, using default' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The reloadcommand is NOT provided, using default' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise 'DEBUG $(this.bundle): The baseinit is NOT provided, using default' because 'if'/'ifvarclass' is not defined
+ verbose: C:     +  Global class: _stdlib_path_exists_systemctl
+ verbose: Skipping promise 'diff_files', because 'unless' is defined
+ verbose: Skipping promise 'promise_log_files', because 'unless' is defined
+ verbose: Skipping promise 'previous_state_files', because 'unless' is defined
+ verbose: Skipping promise 'untracked_files', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping promise 'reports_size[$(files)]', because 'unless' is defined
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: Skipping iteration since variable 'index' resolves to an empty list
+ verbose: sort: argument 'default:insert_ini_section.indeces' does not resolve to a container or a list or a CFEngine array
+ verbose: sort: argument 'default:insert_ini_section.indeces' does not resolve to a container or a list or a CFEngine array
+ verbose: Skipping iteration since variable 'passed' resolves to an empty list
+ verbose: Skipping iteration since variable 'failed' resolves to an empty list
+ verbose: Skipping iteration since variable 'skipped' resolves to an empty list
+ verbose: Skipping iteration since variable 'todo' resolves to an empty list
+ verbose: length: argument 'default:run_ifdefined.bundlesfound' does not resolve to a container or a list or a CFEngine array
+ verbose: length: argument 'default:run_ifdefined.bundlesfound' does not resolve to a container or a list or a CFEngine array
+ verbose: Setting minimum acceptable TLS version: 1.0
+ verbose: ----------------------------------------------------------------
+ verbose:  Begin policy/promise evaluation 
+ verbose: ----------------------------------------------------------------
+ verbose: Using bundlesequence =>  {"main"}
+ verbose: B: *****************************************************************
+ verbose: B: BEGIN bundle main
+ verbose: B: *****************************************************************
+ verbose: V:     Computing value of 'test'
+ verbose: A: Promise was KEPT
+ verbose: P: END meta promise (test)
+ verbose: V: .........................................................
+ verbose: V: BEGIN variables (pass 1)
+ verbose: V:     Computing value of 'classes_are_first'
+ verbose: V:     Computing value of 'vars_are_first'
+ verbose: V:     Computing value of 'answer'
+ verbose: C: .........................................................
+ verbose: C: BEGIN classes / conditions (pass 1)
+ verbose: C:     +  Private class: vars_are_first
+ verbose: Skipping promise 'vars_are_first' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(classes_are_first)' because 'if'/'ifvarclass' is not defined
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_5652M70_27' of type "reports" (pass 1)
+ verbose: P:    Promiser/affected object: 'Vars come first'
+ verbose: P:    Part of bundle: main
+ verbose: P:    Base context class: any
+ verbose: P:    "if" class condition: vars_are_first
+ verbose: P:    Stack path: /default/main/reports/'Vars come first'[1]
+R: Vars come first
+ verbose: A: Promise was KEPT
+ verbose: P: END reports promise (Vars come first)
+ verbose: P: .........................................................
+ verbose: P: BEGIN promise 'promise_cfengine3_5652M70_30' of type "reports" (pass 1)
+ verbose: P:    Promiser/affected object: 'ifelse: Vars come first'
+ verbose: P:    Part of bundle: main
+ verbose: P:    Base context class: any
+ verbose: P:    Stack path: /default/main/reports/'ifelse: Vars come first'[1]
+R: ifelse: Vars come first
+ verbose: A: Promise was KEPT
+ verbose: P: END reports promise (ifelse: Vars come first)
+ verbose: V:     Computing value of 'test'
+ verbose: A: Promise was KEPT
+ verbose: P: END meta promise (test)
+ verbose: V: .........................................................
+ verbose: V: BEGIN variables (pass 2)
+ verbose: V:     Computing value of 'classes_are_first'
+ verbose: Skipping promise 'vars_are_first' because 'if'/'ifvarclass' is not defined
+ verbose: V:     Computing value of 'answer'
+ verbose: C: .........................................................
+ verbose: C: BEGIN classes / conditions (pass 2)
+ verbose: Skipping promise 'vars_are_first' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(classes_are_first)' because 'if'/'ifvarclass' is not defined
+ verbose: V:     Computing value of 'test'
+ verbose: A: Promise was KEPT
+ verbose: P: END meta promise (test)
+ verbose: V: .........................................................
+ verbose: V: BEGIN variables (pass 3)
+ verbose: V:     Computing value of 'classes_are_first'
+ verbose: Skipping promise 'vars_are_first' because 'if'/'ifvarclass' is not defined
+ verbose: V:     Computing value of 'answer'
+ verbose: C: .........................................................
+ verbose: C: BEGIN classes / conditions (pass 3)
+ verbose: Skipping promise 'vars_are_first' because 'if'/'ifvarclass' is not defined
+ verbose: Skipping promise '$(classes_are_first)' because 'if'/'ifvarclass' is not defined
+ verbose: A: ...................................................
+ verbose: A: Bundle Accounting Summary for 'main' in namespace default
+ verbose: A: Promises kept in 'main' = 8
+ verbose: A: Promises not kept in 'main' = 0
+ verbose: A: Promises repaired in 'main' = 0
+ verbose: A: Aggregate compliance (promises kept/repaired) for bundle 'main' = 100.0%
+ verbose: A: ...................................................
+ verbose: B: *****************************************************************
+ verbose: B: END bundle main
+ verbose: B: *****************************************************************
+ verbose: Generate diff state reports for policy '/home/nickanderson/org/cfengine3-5652M70' SKIPPED
+ verbose: No lock purging scheduled
+ verbose: Outcome of version (not specified) (agent-0): Promises observed - Total promise compliance: 100% kept, 0% repaired, 0% not kept (out of 15 events). User promise compliance: 100% kept, 0% repaired, 0% not kept (out of 15 events). CFEngine system compliance: 0% kept, 0% repaired, 0% not kept (out of 0 events).
+#+end_example

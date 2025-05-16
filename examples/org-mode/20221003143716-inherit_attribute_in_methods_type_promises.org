@@ -1,0 +1,46 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:7c7e1c14-a4f2-467b-9bf0-4483c2ebd7fb][Promise type: methods]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][Promise type: classes]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       7f68dbb6-9199-468a-bbde-7194248c79b2
+:CREATED:  [2022-10-03 Mon 14:38]
+:end:
+#+title: Example illustrating inherit attribute in methods type promises
+
+#+name: example
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :command-in-result t :tangle inherit_attribute_in_methods_type_promises.cf
+  bundle agent main
+  {
+      methods: "guac";
+  }
+  bundle agent guac
+  {
+      classes:
+        "tomcat" expression => "guacamole";
+
+      methods:
+        "Taco"
+          usebundle => taco,
+          inherit => "true";
+  }
+  bundle agent taco
+  {
+      reports:
+        tomcat::
+          "With tomcat on the side please";
+        !tomcat::
+          "No tomcat, thanks";
+  }
+#+end_src
+
+#+call: example()
+
+#+RESULTS:
+: # cf-agent --no-lock --log-level info --file /home/nickanderson/org/roam/daily/work/cfengine3-tHYz8J
+: R: No tomcat, thanks
+
+#+call: example() :define guacamole
+
+#+RESULTS:
+: # cf-agent --define guacamole --no-lock --log-level info --file /home/nickanderson/org/roam/daily/work/cfengine3-is6sCY
+: R: With tomcat on the side please

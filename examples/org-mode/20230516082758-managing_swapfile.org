@@ -1,0 +1,43 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:02e9257f-46c0-4cac-a304-08b54b3f24d2][returnszero()]] [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][fileexists()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][vars]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][classes]] [[id:23504787-b597-41ff-819d-b9625f773210][files]] [[id:67e86f42-3fab-4723-b0b7-4d6cdb87b26d][commands]]
+:ID:       e754a320-acb9-41f8-a6ce-e7e1884f788b
+:CREATED:  [2023-05-16 Tue 08:30]
+:end:
+#+title: Example illustrating managing swapfile
+
+#+BEGIN_SRC cfengine3 :tangle managing_swapfile.cf
+  bundle agent swap_available
+  {
+  # Mysql behaves badly without any swap on a system
+
+    vars:
+        "swapfile" string => "/swapfile1";
+        "swapsizeM" string => "1024";
+
+    classes:
+        "swapfile_active" expression => returnszero("$(paths.grep) '/$(swapfile) ' /proc/swaps", "noshell");
+        "swapfile_exists" expression => fileexists($(swapfile));
+
+    files:
+      "$(swapfile)"
+        perms => mog("0600", "root", "root");
+
+    commands:
+      !swapfile_exists::
+        "/bin/dd"
+          args => "if=/dev/zero of=$(swapfile) bs=1M count=$(swapsizeM)",
+          classes => scoped_classes_generic("bundle", "swapfile_creation");
+
+      swapfile_creation_ok|swapon_not_kept::
+        "/sbin/mkswap"
+          args => "$(swapfile)",
+          comment => "We need to mkswap in order for the swapfile to be usable";
+
+      !swapfile_active::
+        "/sbin/swapon"
+          args => "--fixpgsz $(swapfile)",
+          classes => scoped_classes_generic("bundle", "swapon");
+  }
+#+END_SRC

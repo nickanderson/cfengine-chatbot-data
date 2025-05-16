@@ -1,0 +1,32 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:a7d4400c-c895-43c0-8e8a-7ff7462908df][Function: some()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:431e6692-7600-4467-a0c0-609ea7c09a17][Promise type: classes]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       eaf16b1f-c7da-45b2-9d75-d6efa76026a7
+:CREATED:  [2022-10-25 Tue 11:22]
+:end:
+#+title: Example illustrating set a class if some elements of a list match a regular expression
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle set_a_class_if_some_elements_of_a_list_match_a_regular_expression.cf
+  bundle agent __main__
+  {
+
+    vars:
+        "users" slist => { "" };
+    classes:
+
+        "_have_control_executor_runagent_socket_allow_users"
+          expression => some( ".+.*", "users" );
+
+    reports:
+        _have_control_executor_runagent_socket_allow_users::
+          "I have users specified";
+        !_have_control_executor_runagent_socket_allow_users::
+          "I don't have users specified";
+
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: I don't have users specified

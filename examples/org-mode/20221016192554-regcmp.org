@@ -1,0 +1,22 @@
+:PROPERTIES:
+:ID:       8314b88c-958a-4787-8c80-1d6ff666c5b5
+:END:
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:039e2bf9-f46f-4b42-a75d-cc20faa95dd6][Function: regcmp()]]
+:CFEngine_PromiseTypes:[[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       09dad92d-ef93-4950-b94d-161b93289e14
+:end:
+#+title: Example illustrating regcmp()
+
+#+begin_src cfengine3 :tangle regcmp.cf
+  bundle agent __main__
+  {
+    reports:
+        "A matches A"
+          if => regcmp( "A", "A" );
+  }
+#+end_src
+
+#+RESULTS:
+: R: A matches A

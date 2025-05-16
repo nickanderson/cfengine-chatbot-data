@@ -1,0 +1,201 @@
+:PROPERTIES:
+:ID:       d04fea8a-7959-4e4c-a05b-216a85a5ccef
+:END:
+#+TITLE: Find multi-line string in file using regular expression
+:LOGBOOK:
+CLOCK: [2017-12-21 Thu 12:13]--[2017-12-21 Thu 12:47] =>  0:34
+CLOCK: [2017-12-21 Thu 12:13]--[2017-12-21 Thu 12:13] =>  0:00
+:END:
+
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+        # CFEngine
+        # is the agent you're looking for.
+
+    vars:
+
+        "this_policy_file_content"
+          string => readfile( $(this.promise_filename), inf ),
+          if => not( isvariable( $(this.promiser) ) );
+
+    classes:
+
+        "I_found_the_agent_i_am_looking_for"
+          expression => regcmp( $(this_policy_file_content),
+                                ".*CFEngine.*is\sthe\sagent\s.*");
+
+    reports:
+
+        "I found the agent i am looking for"
+          if => "I_found_the_agent_i_am_looking_for";
+
+  }
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+   error: Scalar variable 'this_policy_file_content' contains itself (non-convergent) 'body file control{ inputs => { '$(sys.libdir)/stdlib.cf' };}
+bundle agent main
+{
+      # CFEngine
+      # is the agent you're looking for.
+
+  vars:
+
+      "this_policy_file_content"
+        string => readfile( $(this.promise_filename), inf ),
+        if => not( isvariable( $(this.promiser) ) );
+
+  classes:
+
+      "I_found_the_agent_i_am_looking_for"
+        expression => regcmp( $(this_policy_file_content),
+                              ".*CFEngine.*is\sthe\sagent\s.*");
+
+  reports:
+
+      "I found the agent i am looking for"
+        if => "I_found_the_agent_i_am_looking_for";
+
+}
+
+'
+   error: Variable 'this_policy_file_content' contains itself indirectly - an unkeepable promise
+   error: Policy failed validation with command '"/home/nickanderson/.cfagent/bin/cf-promises" -c "/home/nickanderson/org/cfengine3-86003LS"'
+   error: CFEngine was not able to get confirmation of promises from cf-promises, so going to failsafe
+   error: CFEngine failsafe.cf: /home/nickanderson/.cfagent/inputs /home/nickanderson/.cfagent/inputs/failsafe.cf
+   error: No suitable server found
+   error: No suitable server found
+R: Built-in failsafe policy triggered
+  notice: Q: ".../cf-agent" -f /":    error: No suitable server found
+Q: ".../cf-agent" -f /":    error: No suitable server found
+Q: ".../cf-agent" -f /":    error: No suitable server found
+#+end_example
+
+
+#+Name: Example showing how to search for a mutliline pattern in a file using native functions
+#+Caption: Example showing how to search for a mutliline pattern in a file using native functions
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+        # CFEngine
+        # is the agent you're looking for.
+
+    files:
+      "/tmp/example.txt"
+        create => "true",
+        edit_line => insert_lines( "CFEngine$(const.n)is the agent you're looking for" ); 
+
+    vars:
+
+        "file_content"
+          string => readfile( "/tmp/example.txt" , inf ),
+          if => not( isvariable( $(this.promiser) ) );
+
+    classes:
+
+        # Search for a multi-line string
+        "I_found_the_agent_i_am_looking_for"
+          expression => regcmp( "CFEngine\Ris\sthe\sagent.*",
+                                $(file_content));
+
+        "I_did_not_find_droids"
+          expression => not( regcmp( ".*droid.*",
+                                $(file_content)));
+
+
+    reports:
+
+        "CFEngine $(sys.cf_version)";
+      
+        "/tmp/example.txt contains:$(const.n)$(file_content)";
+
+        "I found the agent i'm looking for."
+          if => "I_found_the_agent_i_am_looking_for";
+
+        "I see no droids."
+          if => "I_did_not_find_droids";
+  }
+#+END_SRC
+
+#+RESULTS: Example showing how to search for a mutliline pattern in a file using native functions
+: R: CFEngine 3.11.0
+: R: /tmp/example.txt contains:
+: CFEngine
+: is the agent you're looking for
+: 
+: R: I found the agent i'm looking for.
+: R: I see no droids.
+
+Aleksey Tsalolikhin <aleksey@verticalsysadmin.com> writes:
+
+> Yeah, I tried regcmp() but "it didn't work". I'll try again.  Now I know
+> I'm on the right track.  Thanks, Nick!
+
+> Is there any way to do a multiline regex check for a file in CFEngine?
+
+
+I was able to search for a multi-line string using =regcmp()= and =readfile()=.
+
+It would probably be a nice addition to have a function that could do grep natively and return boolean to define a class. For this case at least then you wouldn't need to keep the entire file content stored in a variable.
+
+We have a grep function, but it operates on lists and not files. http://docs.cfengine.com/docs/master/reference-functions-grep.html
+
+#+Name: Example showing how to search for a mutliline pattern in a file using native functions
+#+Caption: Example showing how to search for a mutliline pattern in a file using native functions
+#+BEGIN_SRC cfengine3
+  bundle agent main
+  {
+        # CFEngine
+        # is the agent you're looking for.
+
+    files:
+      "/tmp/example.txt"
+        create => "true",
+        edit_line => insert_lines( "CFEngine$(const.n)is the agent you're looking for" );
+
+    vars:
+
+        "file_content"
+          string => readfile( "/tmp/example.txt" , inf ),
+          if => not( isvariable( $(this.promiser) ) );
+
+    classes:
+
+        # Search for a multi-line string
+        "I_found_the_agent_i_am_looking_for"
+          expression => regcmp( "CFEngine\Ris\sthe\sagent.*",
+                                $(file_content));
+
+        "I_did_not_find_droids"
+          expression => not( regcmp( ".*droid.*",
+                                $(file_content)));
+
+
+    reports:
+
+        "CFEngine $(sys.cf_version)";
+
+        "/tmp/example.txt contains:$(const.n)$(file_content)";
+
+        "I found the agent i'm looking for."
+          if => "I_found_the_agent_i_am_looking_for";
+
+        "I see no droids."
+          if => "I_did_not_find_droids";
+  }
+#+END_SRC
+
+Results in this output:
+
+#+RESULTS: Example showing how to search for a mutliline pattern in a file using native functions
+: R: CFEngine 3.11.0
+: R: /tmp/example.txt contains:
+: CFEngine
+: is the agent you're looking for
+:
+: R: I found the agent i'm looking for.
+: R: I see no droids.

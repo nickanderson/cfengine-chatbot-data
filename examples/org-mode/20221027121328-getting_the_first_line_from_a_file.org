@@ -1,0 +1,24 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:912207eb-c307-4a33-bda5-18bf8a6410fc][Function: nth()]] [[id:87c6bed4-cb2f-4a95-87c0-e53650e91909][Function: readstringlist()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       c7f1e76a-77f9-489b-a247-ceb7efe7872a
+:CREATED:  [2022-10-27 Thu 12:38]
+:end:
+#+title: Example illustrating getting the first line from a file
+
+#+begin_src cfengine3 :tangle getting_the_first_line_from_a_file.cf
+  bundle agent __main__
+  {
+    vars:
+      "i" string => nth( readstringlist( $(this.promise_filename), "", "$(const.n)", 1, inf ), 0 );
+
+    reports:
+      "$(i)";
+  }
+
+#+end_src
+
+#+RESULTS:
+: R: body file control{ inputs => { '/home/nickanderson/.cfagent/inputs/lib/stdlib.cf' };}
+

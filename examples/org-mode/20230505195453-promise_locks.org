@@ -1,0 +1,68 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       6660ad44-0017-44e9-8c9b-9e2240a5cbc2
+:CREATED:  [2023-05-05 Fri 19:55]
+:end:
+#+title: Example illustrating Promise locks
+
+By default CFEngine applies a 1 minute lock to every promise in an attempt to avoid some kind of self denial of service by doing too much work. The effects of this are easy to see, here is an example (=/tmp/example-locks.cf=) using a reports promise.
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle /tmp/example-locks.cf
+  bundle agent __main__
+  {
+    reports:
+      "Hello world!";
+      "It's $(sys.date)";
+      "Hello world 2!" action => my_immediate; # Locks ignored for this individual promise
+  }
+  body action my_immediate
+  {
+        ifelapsed => "0"; # Run this promise if 0 or more minutes have passed since the last time it was run
+                          # https://docs.cfengine.com/docs/3.21/reference-promise-types.html#ifelapsed
+  }
+#+end_src
+
+#+begin_src sh :results output :exports both
+  echo "First run at $(date)"                      && cf-agent -f /tmp/example-locks.cf
+  echo "Second run (within one minute) at $(date)" && cf-agent -f /tmp/example-locks.cf
+  echo "Run without locks (within one minute)"     && cf-agent -Kf /tmp/example-locks.cf
+#+end_src
+
+#+RESULTS:
+#+begin_example
+First run at Fri May  5 11:29:03 AM CDT 2023
+R: Hello world!
+R: It's Fri May  5 11:29:03 2023
+R: Hello world 2!
+Second run (within one minute) at Fri May  5 11:29:04 AM CDT 2023
+R: It's Fri May  5 11:29:04 2023
+R: Hello world 2!
+Run without locks (within one minute)
+R: Hello world!
+R: It's Fri May  5 11:29:04 2023
+R: Hello world 2!
+#+end_example
+
+Notice in the second run =Hello world!= was not emitted. That promise had run within one minute ago. The date was emitted because the promise differed from the prior time (the time itself had changed), making it a unique promise.  =Hello world 2!= was emitted each time because that specific promise was configure to run no matter how long ago it had already run. And in the last run we see =Hello world!= because the entire agent run was initiated with =-K= (or =--no-lock=) which causes all promises to ignore locks for that single agent run.
+
+We can see if we wait for 1 minute between runs that =Hello world!= is emitted both times since the lock is not preventing it from running.
+
+#+begin_src sh :results output :exports both
+  echo "First run at $(date)"                      && cf-agent -f /tmp/example-locks.cf && sleep 61
+  echo "Second run (after 60 secons) at $(date)"   && cf-agent -f /tmp/example-locks.cf
+#+end_src
+
+#+RESULTS:
+: First run at Fri May  5 11:33:23 AM CDT 2023
+: R: Hello world!
+: R: It's Fri May  5 11:33:23 2023
+: R: Hello world 2!
+: Second run (after 60 secons) at Fri May  5 11:34:24 AM CDT 2023
+: R: Hello world!
+: R: It's Fri May  5 11:34:24 2023
+: R: Hello world 2!
+
+
+*

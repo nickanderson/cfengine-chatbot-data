@@ -1,0 +1,54 @@
+:PROPERTIES:
+:ID:       bd979be7-1bfc-4885-a8eb-4c796170728d
+:CFEngine_Functions: [[id:fcae5550-2e46-493f-9128-f3d4df3773ea][accessedbefore()]]
+:END:
+#+title: Example illustrating accessedbefore()
+
+#+begin_src cfengine3 :tangle accessedbefore.cf
+  bundle agent __main__
+  {
+    methods:
+        "init";
+        "example_accessedbefore";
+  }
+
+  bundle agent init
+  {
+    commands:
+        "/usr/bin/touch -a -t '200102031234.56' /tmp/FileA";
+        "/usr/bin/touch -a -t '202202031234.56' /tmp/FileB";
+  }
+
+
+  bundle agent example_accessedbefore
+  {
+    classes:
+        "FileA_was_accessed_before_FileB" expression => accessedbefore("/tmp/FileA","/tmp/FileB");
+
+    reports:
+      FileA_was_accessed_before_FileB::
+        "FileA was accessed before FileB";
+
+      !FileA_was_accessed_before_FileB::
+        "FileA was not accessed before FileB";
+        
+      any::
+        "$(with)"
+          with => concat( "Access Time$(const.n)",
+                          "$(const.t)  FileA atime: ",
+                          strftime( localtime, "%F", filestat( "/tmp/FileA", "atime" ) ),
+                          "$(const.n)",
+                          "$(const.t)  FileB atime: ",
+                          strftime( localtime, "%F", filestat( "/tmp/FileB", "atime" ) )
+                          );
+  }
+#+end_src
+
+#+RESULTS:
+: R: FileA was accessed before FileB
+: R: Access Time
+: 	  FileA atime: 2001-02-03
+: 	  FileB atime: 2022-02-03
+
+*References:*
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

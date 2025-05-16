@@ -1,0 +1,33 @@
+:properties:
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions:
+:CFEngine_PromiseTypes:
+:ID:       b08a8a7e-133b-4d4b-bf78-f95c9902f917
+:CREATED:  [2023-08-30 Wed 10:27]
+:end:
+#+title: Example illustrating disabling a file (renaming it, adding a suffix)
+
+#+begin_src cfengine3 :tangle disabling_a_file_renaming_it_adding_a_suffix.cf
+  bundle agent __main__
+  {
+    files:
+      "/tmp/example.txt"
+        content => "Disable me!";
+
+      "/tmp/example.txt"
+        rename => default:disable;
+  }
+  # For reference:
+  # body rename disable
+  # # @brief Disable the file
+  # {
+  #         disable => "true";
+  # }
+#+end_src
+
+#+RESULTS:
+:     info: Created file '/tmp/example.txt', mode 0600
+:     info: Updated file '/tmp/example.txt' with content 'Disable me!'
+:  warning: File object '/tmp/example.txt' exists, contrary to promise
+:     info: Changed permissions of '/tmp/example.txt' to 'mode 0600'
+:     info: Disabled file '/tmp/example.txt' by renaming to '/tmp/example.txt.cfdisabled' with mode 0600

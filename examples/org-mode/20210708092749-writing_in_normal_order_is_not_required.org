@@ -1,0 +1,49 @@
+:PROPERTIES:
+:ID:       268fe1ff-dc25-41f4-a908-a4e9ec569570
+:CREATED:  [2021-07-08 Thu 10:08]
+:END:
+#+title: Example illustrating writing in normal order is not required
+
+[[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]
+
+#+caption: Example illustrating that writing in the normal order is not required
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :tangle writing_in_normal_order_is_not_required.cf
+  bundle agent main
+  {
+    reports:
+        "The message is '$(msg)'"
+          handle => "MARK1";
+  
+    vars:
+        "msg"
+          string => "Hello",
+          handle => "MARK2";
+  }
+#+end_src
+
+#+RESULTS:
+: R: The message is 'Hello'
+
+Verbose output helps see the specific details.
+
+#+caption: Shell command with stderr
+#+begin_src sh :results output :exports both
+  exec 2>&1
+  cf-agent -Kvf ./writing_in_normal_order_is_not_required.cf | grep -P "BEGIN"
+  :
+#+end_src
+
+#+RESULTS:
+:  verbose: BEGIN parsing file: ./writing_in_normal_order_is_not_required.cf
+:  verbose: BEGIN Discovered hard classes:
+:  verbose: B: BEGIN bundle main
+:  verbose: V: BEGIN variables (pass 1)
+:  verbose: P: BEGIN promise 'MARK1' of type "reports" (pass 1)
+:  verbose: V: BEGIN variables (pass 2)
+:  verbose: V: BEGIN variables (pass 3)
+
+I think I should see "=verbose: V: BEGIN promise 'MARK2' of type "vars" (pass 1)=", but alas, I do not (even if I pass ~--log-modules=all~.
+
+So I filed a ticket, CFE-3706.
+
+

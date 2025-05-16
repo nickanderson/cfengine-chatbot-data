@@ -1,0 +1,19 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:28a76244-a1a7-4d9e-b899-b80d740eb231][Function: hash_to_int()]]
+:CFEngine_PromiseTypes: [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       c62606d3-2ab1-4014-a39d-33b512123148
+:end:
+#+title: Example illustrating hash_to_int()
+
+#+begin_src cfengine3 :tangle hash_to_int.cf
+  bundle agent __main__
+  {
+    reports:
+        "$(with)" with => hash_to_int(1, 10, "$(sys.host)" );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: 3

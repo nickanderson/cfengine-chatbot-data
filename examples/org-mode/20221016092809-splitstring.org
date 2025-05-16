@@ -1,0 +1,22 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:ae4be6cf-6663-41b5-952b-286c7e56fe87][Function: splitstring()]] [[id:61ecf84b-2333-4b5b-87dc-385f16bffd4b][Function: string_split()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]]
+:ID:       eb179dbb-2c60-43db-8c02-f00389efa99f
+:end:
+#+title: Example illustrating splitstring()
+
+#+begin_src cfengine3 :tangle splitstring.cf :extra-opts --show-evaluated-vars=main\\.
+  bundle agent __main__
+  {
+    vars:
+        "splitstring" slist => splitstring( "1:2:3:4:5:6", ":", "2" );
+        "string_split" slist => string_split( "1:2:3:4:5:6", ":", "2" );
+
+  }
+#+end_src
+
+#+RESULTS:
+: Variable name                            Variable value                                               Meta tags                                Comment
+: default:main.splitstring                  {"1","2"}                                                   source=promise
+: default:main.string_split                 {"1","2:3:4:5:6"}                                           source=promise

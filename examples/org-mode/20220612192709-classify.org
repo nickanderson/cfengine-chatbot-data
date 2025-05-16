@@ -1,0 +1,30 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:ID:       f0412d2c-e224-4437-8c16-08f7fe959a3a
+:CFEngine_Function: [[id:3f8422a1-c478-4512-a166-e3dfb91784ec][Function: ifelse()]] [[id:4eff5db1-160c-4fdd-b63f-5a37422f090d][Function: classify()]] 
+:end:
+#+title: Example illustrating classify()
+
+
+#+begin_src cfengine3 :tangle classify.cf
+  bundle agent __main__
+  {
+     vars:
+        "my_list" slist => { "cfengine 3", "cfengien 4", "cfengine 3_18.1", "windows" };
+
+     reports:
+        "CFEngine version: $(sys.cf_version)";
+        "The canonicalized version of '$(my_list)' $(with) a class that is currently defined"
+          with => ifelse( classify( "$(my_list)" ),  "matches",
+                          "does not match" );
+
+  }
+#+end_src
+
+#+RESULTS:
+: R: CFEngine version: 3.18.1
+: R: The canonicalized version of 'cfengine 3' matches a class that is currently defined
+: R: The canonicalized version of 'cfengien 4' does not match a class that is currently defined
+: R: The canonicalized version of 'cfengine 3_18.1' matches a class that is currently defined
+: R: The canonicalized version of 'windows' does not match a class that is currently defined
+

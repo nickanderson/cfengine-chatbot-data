@@ -1,0 +1,14 @@
+:PROPERTIES:
+:ID:       353de15f-7be3-4f8d-830b-14ad2793b48c
+:END:
+#+title: Example illustrating test
+
+#+begin_src cfengine3 :tangle test.cf 
+  bundle agent __main__
+  {
+     %?
+ 
+  }
+#+end_src
+* References
+- [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine Examples]]

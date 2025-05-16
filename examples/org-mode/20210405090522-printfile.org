@@ -1,0 +1,10 @@
+:PROPERTIES:
+:CREATED:  [2021-04-05 Mon 19:56]
+:ID:       f641e2e9-eaf3-4ed3-bac7-105b4c68c0f3
+:index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:END:
+#+title: Examples illustrating printfile
+#+roam_tags: CFEngine
+
+- [[id:4a1800a4-be1c-4ed7-b97c-2eb0aca013c0][cat( FILE )]]
+- [[id:efec3bbf-d0e9-49cf-a317-6f8878872674][head( FILE )]]

@@ -1,0 +1,63 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:79fc02c5-2664-48bc-bcd1-6a4aeb5821f0][Function: fileexists()]] [[id:3f8422a1-c478-4512-a166-e3dfb91784ec][Function: ifelse()]] [[id:748f68b3-8a9b-4ed6-b161-96080c08e4ce][Function: readfile()]]
+:CFEngine_PromiseTypes: [[id:b31e06a4-d3b1-44f2-9292-cd20ca17cb66][Promise type: vars]] [[id:c458bf16-1ba9-499f-a801-e94e0f80a5c9][Promise type: reports]]
+:ID:       03d0b135-1c24-42ff-9e58-23258a53029d
+:CREATED:  [2023-01-06 Fri 17:43]
+:end:
+#+title: Example illustrating checking to see if JSON files are valid
+
+=/tmp/test.json=:
+
+#+begin_src json :tangle /tmp/test.json
+  {
+      "test": "this is just a test"
+  }
+#+end_src
+
+=/tmp/test.notjson=:
+
+#+begin_src json :tangle /tmp/test.notjson
+  I've got a lovely bunch of coco-nuts, there they are standing in a row!
+#+end_src
+
+=/tmp/test.notjsonbutvalid=:
+
+#+begin_src json :tangle /tmp/test.notjsonbutvalid
+  "test": "this is not valid json, but CFEngine seems to tolerate it. BUG!"
+#+end_src
+
+And some policy to exercise it:
+
+#+begin_src cfengine3 :include-stdlib t :log-level info :exports both :extra-opts --show-evaluated-vars=default:main\\. :tangle checking_to_see_if_json_files_are_valid.cf
+  bundle agent __main__
+  {
+
+    vars:
+        "files" slist => { "/tmp/test.json", "/tmp/test.notjson", "/tmp/test.notjsonbutvalid" };
+
+        # "d1" data => readjson( "/tmp/test.notjsonbutvalid" ); # Prodcues an error: readjson: non-container from parsing JSON file '/tmp/test.notjsonbutvalid'
+
+    reports:
+
+        "validjson() thinks that the content in $(files) is $(with) JSON string!"
+          if => fileexists( "$(files)" ),
+          with => ifelse( validjson( readfile( "$(files)" ) ), "valid", "not valid"),
+          printfile => cat( $(files) );
+
+  }
+#+end_src
+
+#+RESULTS:
+#+begin_example
+R: validjson() thinks that the content in /tmp/test.json is valid JSON string!
+R: {
+R:     "test": "this is just a test"
+R: }
+R: validjson() thinks that the content in /tmp/test.notjson is not valid JSON string!
+R: I've got a lovely bunch of coco-nuts, there they are standing in a row!
+R: validjson() thinks that the content in /tmp/test.notjsonbutvalid is valid JSON string!
+R: "test": "this is not valid json, but CFEngine seems to tolerate it. BUG, IMHO!"
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.files                        {"/tmp/test.json","/tmp/test.notjson","/tmp/test.notjsonbutvalid"} source=promise
+#+end_example

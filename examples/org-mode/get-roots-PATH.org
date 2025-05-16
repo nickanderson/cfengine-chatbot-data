@@ -1,0 +1,758 @@
+:PROPERTIES:
+:ID:       662285e5-e9cb-4fe4-aac5-f2dec2bfc666
+:END:
+#+TITLE: How to get roots PATH
+
+#+BEGIN_QUOTE
+"Please describe how you would implement the following use case in your
+solution's domain-specific language, YAML etc. Target platforms: a generic
+UNIX-like operating system (POSIX).
+ 
+This compliance check passes if only root itself has write access to the files
+and directories (including symbolic links) in its $PATH. How do you deal with
+LDAP/non-local user accounts?"
+#+END_QUOTE
+
+We could get roots path and then promise that each path recursively has files
+that are owned by root and that those files are only writeable by root, not
+writeable by group and not writeable by others. In this example warning vs fixed
+is implemented for easy switching by the value of a variable. CFEngine operates
+on local files, and can promise the permissions regardless if the user is from a
+directory or a local user. We locate all symlinks that exist in any of the
+directories that make up roots PATH, resolve those link targets and ensure they
+are root owned and root writeable as well.
+
+#+BEGIN_SRC cfengine3 :tangle /tmp/test.cf :include-stdlib no
+  bundle agent main
+  {
+    vars:
+        "mode" string => "warn";
+
+      # Policy runs as root, so we execute env and extract PATH
+        "PATH"
+          string => execresult( "/usr/bin/env | awk -F '=' '/^PATH/ {print $2}'", useshell);
+
+      # Here we split the PATH so that we can operate on each directory
+        "PATHs" slist => string_split( "$(PATH)", ":", inf );
+
+
+     # We need to locate all of the symlinks that reside in PATH and resolve the
+     # link target for each.
+      "symlinks[$(PATHs)]" string => execresult( "/usr/bin/find $(PATHs) -type l", noshell);
+        "m" data => '[]';
+        "m" data => mergedata( '[]', m, string_split( "$(symlinks[$(PATHs)])", "\n", inf) );
+        "i" slist => getvalues( m );
+      "target[$(i)]" string => filestat( $(i), linktarget );
+
+    files:
+      # Recursively search each directory in PATH aserting that all files (
+      # including directories ) are owned by root, with user write access, without
+      # group write access, without other write access. Warn or fix based on
+      # $(mode) variable.
+
+        # Here we ensure files in directories that makes up $PATH are owned, and
+        # only writeable by root.
+
+        "$(PATHs)/." -> { "CFG-072" }
+          perms => mo( "u+w,g-w,o-w", root ),
+          comment => "If non root users can modify files in roots PATH, then they
+                      can subvert the system",
+          depth_search => recurse_with_base( inf ),
+          file_select => all,
+          action => warn_or_fix( $(mode) );
+
+        # Here we ensure that targets of symlinks found in $PATH are owned and
+        # only writable by root
+
+        "$(target[$(i)])" -> { "CFG-072" }
+          comment => "If non root users can modify files that are targets of
+                      symlinks in roots PATH, then they can subvert the system.",
+          perms => mo( "u+w,g-w,o-w", root ),
+          action => warn_or_fix( $(mode) );
+  }
+  body action warn_or_fix( mode )
+  {
+          action_policy => "$(mode)";
+  }
+  # From stdlib ...
+  body file_select all
+  # @brief Select all file system entries
+  {
+        leaf_name => { ".*" };
+        file_result => "leaf_name";
+  }
+  body perms mo(mode,user)
+  # @brief Set the file's mode and owners
+  # @param mode The new mode
+  # @param user The username of the new owner
+  {
+        owners => { "$(user)" };
+        mode   => "$(mode)";
+  }
+  body depth_search recurse_with_base(d)
+  # @brief Search files and directories recursively up to the specified
+  # depth, starting from the base directory and including directories on
+  # other devices.
+  #
+  # @param d The maximum search depth
+  {
+        depth => "$(d)";
+        xdev  => "true";
+        include_basedir => "true";
+  }
+
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+R: /usr/lib/go-1.10/bin/go
+R: /usr/bin/avahi-publish
+R: /usr/bin/mtools
+R: /sbin/mke2fs
+R: /sbin/xtables-multi
+R: /usr/bin/unix2dos
+R: /usr/bin/netkit-ftp
+R: /usr/bin/run-mailcap
+R: /usr/bin/gcc-ranlib-5
+R: /lib/systemd/systemd
+R: /usr/lib/nodejs/JSONStream/bin.js
+R: /usr/share/pkg-config-crosswrapper
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/servertool
+R: /usr/share/docutils/scripts/python2/rst2html
+R: /usr/share/dh-python/dh_python3
+R: /usr/bin/qtchooser
+R: /usr/bin/compare-im6.q16
+R: /usr/share/python/pyversions.py
+R: /usr/bin/kvm
+R: /usr/bin/bsd-from
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jstat
+R: /usr/share/texlive/texmf-dist/scripts/texlive/kpsetool.sh
+R: /usr/share/texlive/texmf-dist/scripts/thumbpdf/thumbpdf.pl
+R: /usr/bin/x86_64-linux-gnu-python2.7-config
+R: /usr/lib/jvm/java-8-oracle/jre/bin/ControlPanel
+R: /usr/bin/pnmnorm
+R: /usr/bin/gnome-session
+R: /usr/sbin/cupsaccept
+R: /usr/bin/avahi-resolve
+R: /usr/bin/col1
+R: /usr/share/postgresql-common/pg_wrapper
+R: /usr/bin/dos2unix
+R: /usr/share/docutils/scripts/python2/rst2odt
+R: /usr/lib/wine/wineapploader
+R: /usr/share/docutils/scripts/python2/rst2latex
+R: /usr/bin/hexdump
+R: /usr/bin/xzless
+R: /usr/lib/nodejs/opener/opener.js
+R: /usr/sbin/adduser
+R: /usr/bin/x86_64-linux-gnu-gcov-dump-8
+R: /usr/bin/mflua
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/jhat
+R: /var/cfengine/bin/cf-upgrade
+R: /sbin/mkfs.fat
+R: /usr/bin/lynx
+R: /bin/bzgrep
+R: /usr/bin/xdg-open
+R: /usr/bin/gcc-nm-5
+R: /usr/bin/python3.6
+R: /usr/bin/luatex
+R: /sbin/dmsetup
+R: /bin/lesspipe
+R: /usr/lib/snapd/snap-confine
+R: /usr/lib/thunderbird/thunderbird.sh
+R: /usr/bin/mutter
+R: /usr/share/lintian/frontend/dplint
+R: /usr/bin/yelp
+R: /usr/bin/pdftex
+R: /usr/bin/bluetooth
+R: /usr/share/virtualbox/VBox.sh
+R: /usr/bin/eqn
+R: /bin/lessecho
+R: /usr/share/docutils/scripts/python2/rst2s5
+R: /opt/google/chrome/google-chrome
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/htxelatex.sh
+R: /sbin/e2fsck
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/orbd
+R: /usr/lib/python2.7/pdb.py
+R: /usr/share/texlive/texmf-dist/scripts/texlive/allcm.sh
+R: /usr/local/lib/node_modules/image-lint/bin/image-lint
+R: /usr/local/lib/node_modules/keybase/bin/main.js
+R: /bin/bzdiff
+R: /usr/bin/mono-sgen
+R: /usr/bin/emacsclient.emacs
+R: /bin/nc.openbsd
+R: /usr/bin/apport-bug
+R: /usr/bin/ubuntu-advantage
+R: /usr/bin/x86_64-linux-gnu-gcc-nm-8
+R: /usr/bin/gnome-web-photo
+R: /usr/bin/x86_64-linux-gnu-cpp-6
+R: /usr/share/hplip/makeuri.py
+R: /usr/bin/pstree
+R: /usr/bin/setarch
+R: /sbin/ifup
+R: /usr/bin/emacs-gtk
+R: /sbin/lvm
+R: /usr/lib/bluetooth/bluetoothd
+R: /usr/sbin/libgvc6-config-update
+R: /usr/bin/x86_64-linux-gnu-gcov-tool-7
+R: /usr/local/lib/node_modules/git-stats/bin/git-stats
+R: /usr/bin/proj
+R: /usr/bin/composite-im6.q16
+R: /usr/bin/lft.db
+R: /usr/bin/nmtui
+R: /var/cfengine/bin/cf-execd
+R: /usr/share/texlive/texmf-dist/scripts/texlive/allneeded.sh
+R: /sbin/killall5
+R: /usr/bin/pydoc2.7
+R: /usr/bin/x86_64-linux-gnu-ld.gold
+R: /usr/sbin/update-dictcommon-aspell
+R: /var/cfengine/bin/cf-runagent
+R: /usr/bin/cpp-4.9
+R: /usr/sbin/update-language
+R: /usr/bin/gcov-tool-5
+R: /usr/lib/snapd/snapctl
+R: /usr/sbin/iptables-apply
+R: /usr/bin/borg
+R: /usr/bin/pacat
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/tnameserv
+R: /usr/bin/xz
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jconsole
+R: /usr/share/hplip/levels.py
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jdeprscan
+R: /usr/bin/qemu-system-x86_64
+R: /usr/bin/resgen
+R: /usr/bin/wish8.6
+R: /usr/bin/x86_64-linux-gnu-gcov-8
+R: /var/cfengine/bin/mdb_stat
+R: /usr/bin/chardetect
+R: /usr/bin/animate-im6.q16
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/xhlatex.sh
+R: /usr/lib/google-cloud-sdk/bin/bq
+R: /usr/bin/vim.basic
+R: /opt/google/musicmanager/google-musicmanager
+R: /usr/share/texlive/texmf-dist/scripts/glossaries/makeglossaries-lite.lua
+R: /usr/share/docutils/scripts/python2/rstpep2html
+R: /usr/bin/pygettext2.7
+R: /usr/bin/chardetect3
+R: /usr/share/texlive/texmf-dist/scripts/fig4latex/fig4latex
+R: /usr/bin/tset
+R: /bin/brltty
+R: /var/cfengine/bin/cf-promises
+R: /usr/share/docutils/scripts/python2/rst-buildhtml
+R: /usr/bin/x86_64-linux-gnu-c++filt
+R: /usr/bin/mf
+R: /usr/bin/flex
+R: /usr/bin/run-one
+R: /usr/sbin/sendmail
+R: /opt/Signal/signal-desktop
+R: /usr/bin/c99-gcc
+R: /usr/bin/x86_64-linux-gnu-gcc-6
+R: /usr/bin/x86_64-linux-gnu-gcc-ar-7
+R: /usr/share/python3/py3versions.py
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/xjc
+R: /usr/bin/libpng16-config
+R: /usr/share/texlive/texmf-dist/scripts/epspdf/epspdf.tlu
+R: /bin/lowntfs-3g
+R: /usr/bin/x86_64-linux-gnu-gcov-tool-8
+R: /usr/lib/x86_64-linux-gnu/glusterfs/peer_georep-sshkey.py
+R: /usr/bin/resolvectl
+R: /usr/bin/genisoimage
+R: /usr/share/texlive/texmf-dist/scripts/pygmentex/pygmentex.py
+R: /usr/lib/jvm/java-8-oracle/jre/bin/jcontrol
+R: /usr/share/docutils/scripts/python2/rst2man
+R: /usr/lib/google-cloud-sdk/bin/gsutil
+R: /usr/share/docutils/scripts/python2/rst2html4
+R: /usr/bin/x86_64-linux-gnu-gcov-6
+R: /usr/bin/x86_64-linux-gnu-gcc-ranlib-8
+R: /usr/bin/x86_64-linux-gnu-addr2line
+R: /usr/sbin/update-tl-stacked-conffile
+R: /sbin/fsck.fat
+R: /usr/bin/gimp-console-2.10
+R: /usr/share/hplip/probe.py
+R: /usr/sbin/tcptraceroute.db
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/rmic
+R: /usr/bin/byobu
+R: /usr/bin/install-info
+R: /usr/bin/aclocal-1.16
+R: /usr/bin/xdvipdfmx
+R: /usr/share/texlive/texmf-dist/scripts/texlive/dvi2fax.sh
+R: /usr/share/texlive/texmf-dist/scripts/texlive/updmap.pl
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/httex.sh
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jaotc
+R: /usr/bin/xzgrep
+R: /usr/share/hplip/colorcal.py
+R: /usr/lib/jvm/java-11-openjdk-amd64/lib/jexec
+R: /usr/bin/rdoc2.5
+R: /usr/bin/gem2.5
+R: /usr/share/hplip/testpage.py
+R: /usr/bin/x86_64-linux-gnu-ld.bfd
+R: /usr/bin/xzmore
+R: /opt/vivaldi/vivaldi
+R: /sbin/on_ac_power
+R: /usr/bin/x86_64-linux-gnu-cpp-8
+R: /usr/share/s4cmd/s4cmd.py
+R: /usr/bin/tbl
+R: /usr/share/texlive/texmf-dist/scripts/petri-nets/pn2pdf
+R: /usr/share/texlive/texmf-dist/scripts/glossaries/makeglossaries
+R: /usr/bin/gcc-ar-5
+R: /usr/bin/x86_64-linux-gnu-gcc-8
+R: /usr/share/atom/resources/app/apm/bin/apm
+R: /usr/bin/pygettext3.6
+R: /usr/lib/x86_64-linux-gnu/qt4/bin/qtconfig
+R: /usr/share/texlive/texmf-dist/scripts/yplan/yplan
+R: /usr/lib/python3.6/pdb.py
+R: /usr/share/docutils/scripts/python2/rst2html5
+R: /usr/bin/mysqlcheck
+R: /usr/games/cowsay
+R: /usr/bin/x86_64-linux-gnu-ar
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jar
+R: /usr/bin/last
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/rmiregistry
+R: /bin/systemctl
+R: /bin/chacl
+R: /bin/kmod
+R: /usr/bin/luajittex
+R: /opt/zoom/ZoomLauncher
+R: /opt/teamviewer/tv_bin/script/teamviewer
+R: /usr/share/texlive/texmf-dist/scripts/epspdf/epspdftk.tcl
+R: /usr/bin/montage-im6.q16
+R: /bin/mt-gnu
+R: /usr/bin/install-menu
+R: /usr/share/texlive/texmf-dist/scripts/makedtx/makedtx.pl
+R: /bin/zsh
+R: /var/cfengine/bin/cf-serverd
+R: /var/cfengine/bin/cf-net
+R: /sbin/dumpe2fs
+R: /usr/bin/gcov-dump-5
+R: /usr/bin/gcc-ar-4.9
+R: /usr/share/dh-python/pybuild
+R: /var/cfengine/bin/mdb_copy
+R: /usr/bin/x86_64-linux-gnu-gcov-dump-7
+R: /usr/lib/nodejs/rimraf/bin.js
+R: /usr/bin/mlocate
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/extcheck
+R: /usr/bin/pgrep
+R: /bin/which
+R: /usr/bin/git
+R: /usr/share/texlive/texmf-dist/scripts/texdoc/texdoc.tlu
+R: /usr/bin/pmpost
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/pack200
+R: /usr/sbin/vipw
+R: /usr/bin/Xorg
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/htcontext.sh
+R: /usr/bin/x86_64-linux-gnu-elfedit
+R: /sbin/fatlabel
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jhsdb
+R: /usr/bin/conjure-im6.q16
+R: /var/cfengine/bin/lmdump
+R: /usr/share/hplip/clean.py
+R: /usr/bin/monodis
+R: /usr/bin/x86_64-linux-gnu-gcc-ranlib-6
+R: /bin/hostname
+R: /usr/share/hplip/logcapture.py
+R: /usr/bin/traceroute.db
+R: /bin/openvt
+R: /usr/bin/gcc-5
+R: /usr/bin/file-rename
+R: /sbin/tune2fs
+R: /usr/bin/psfxtable
+R: /bin/less
+R: /usr/bin/luatex53
+R: /usr/bin/gxl2gv
+R: /usr/bin/gawk
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/htmex.sh
+R: /usr/lib/virtualbox/vbox-img
+R: /usr/bin/pamoil
+R: /usr/bin/pnmtoplainpnm
+R: /usr/share/hplip/align.py
+R: /usr/bin/pbput
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/wsimport
+R: /usr/bin/mpost
+R: /usr/bin/zenmap
+R: /usr/bin/parallel
+R: /usr/bin/pamstretch
+R: /usr/share/hplip/check.py
+R: /usr/bin/tex
+R: /usr/lib/wine/wine64
+R: /usr/bin/weechat
+R: /usr/bin/x86_64-linux-gnu-gcov-7
+R: /usr/bin/upmpost
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/schemagen
+R: /usr/bin/interdiff
+R: /usr/bin/webalizer
+R: /usr/bin/x86_64-linux-gnu-gcov-tool-6
+R: /usr/bin/xdvi-xaw
+R: /usr/bin/x86_64-linux-gnu-readelf
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/serialver
+R: /usr/bin/scp
+R: /usr/bin/mktexlsr
+R: /usr/bin/omfonts
+R: /usr/bin/mcs
+R: /sbin/cryptdisks_stop
+R: /usr/bin/gcc-4.9
+R: /usr/share/texlive/texmf-dist/scripts/l3build/l3build.lua
+R: /usr/bin/whatis
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jjs
+R: /sbin/mount.nfs
+R: /usr/bin/x86_64-linux-gnu-gprof
+R: /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/itweb-settings
+R: /usr/local/lib/node_modules/gifify/bin/gifify
+R: /usr/bin/c89-gcc
+R: /usr/bin/gnome-keyring-3
+R: /usr/bin/node
+R: /usr/lib/nodejs/semver/bin/semver
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jmod
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jcmd
+R: /usr/bin/x86_64-linux-gnu-gcc-ar-8
+R: /usr/bin/bmptopnm
+R: /var/cfengine/bin/cf-twin
+R: /usr/bin/bsd-write
+R: /usr/lib/packagekit/pk-gstreamer-install
+R: /usr/lib/wine/wineserver
+R: /usr/share/hplip/scan.py
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/javah
+R: /usr/bin/sudo
+R: /usr/share/texlive/texmf-dist/scripts/texlive/fmtutil-user.sh
+R: /usr/bin/traceroute6.iputils
+R: /usr/share/texlive/texmf-dist/scripts/vpe/vpe.pl
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jarsigner
+R: /usr/lib/x86_64-linux-gnu/glib-2.0/glib-compile-schemas
+R: /usr/bin/add-apt-repository
+R: /bin/udevadm
+R: /usr/share/texlive/texmf-dist/scripts/context/perl/mptopdf.pl
+R: /usr/share/texlive/texmf-dist/scripts/texlive/dvired.sh
+R: /usr/sbin/iucode_tool
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/javadoc
+R: /var/cfengine/bin/cf-agent
+R: /bin/setfacl
+R: /usr/lib/x86_64-linux-gnu/glib-2.0/gio-launch-desktop
+R: /usr/bin/x86_64-linux-gnu-gcc-ranlib-7
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jdb
+R: /bin/getfacl
+R: /usr/sbin/rmt-tar
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/unpack200
+R: /bin/touch
+R: /usr/bin/tic
+R: /bin/bash
+R: /usr/share/node-gyp/bin/node-gyp.js
+R: /usr/bin/tabbed.default
+R: /bin/nano
+R: /usr/bin/x86_64-linux-gnu-gcc-nm-7
+R: /usr/bin/x86_64-linux-gnu-gcc-7
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/htlatex.sh
+R: /sbin/cryptdisks_start
+R: /usr/bin/mogrify-im6.q16
+R: /usr/share/docutils/scripts/python2/rst2xetex
+R: /usr/bin/ctags-exuberant
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+R: /usr/share/ditaa/ditaa.jar
+R: /usr/bin/gemtopnm
+R: /usr/bin/gjs-console
+R: /usr/bin/stream-im6.q16
+R: /usr/bin/sn
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/appletviewer
+R: /usr/bin/etags.emacs
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jrunscript
+R: /usr/bin/lnstat
+R: /usr/share/docutils/scripts/python2/rst2xml
+R: /usr/share/texlive/texmf-dist/scripts/getmap/getmapdl.lua
+R: /usr/bin/x86_64-linux-gnu-size
+R: /usr/bin/spice-xpi-client-remote-viewer
+R: /usr/share/texlive/texmf-dist/scripts/mathspic/mathspic.pl
+R: /usr/share/npm/bin/npm-cli.js
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/htxetex.sh
+R: /usr/bin/pytest
+R: /bin/dumpkeys
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/ht.sh
+R: /usr/bin/pinentry-gnome3
+R: /usr/share/texlive/texmf-dist/scripts/svn-multi/svn-multi.pl
+R: /usr/bin/x86_64-linux-gnu-gcc-ar-6
+R: /usr/share/terminator/terminator
+R: /usr/bin/gpg
+R: /usr/bin/snap
+R: /usr/bin/x86_64-linux-gnu-g++-8
+R: /usr/lib/pm-utils/bin/pm-action
+R: /usr/bin
+R: /usr/local/maldetect/maldet
+R: /usr/bin/ldapmodify
+R: /usr/bin/md5sum
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jimage
+R: /usr/bin/pamstretch-gen
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/javap
+R: /usr/bin/tor
+R: /usr/bin/x86_64-linux-gnu-objcopy
+R: /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/javaws
+R: /usr/bin/sar.sysstat
+R: /usr/bin/x86_64-linux-gnu-ranlib
+R: /usr/share/texlive/texmf-dist/scripts/pax/pdfannotextractor.pl
+R: /usr/share/docutils/scripts/python2/rst2pseudoxml
+R: /bin/loadkeys
+R: /usr/bin/x86_64-linux-gnu-nm
+R: /usr/lib/x86_64-linux-gnu/glusterfs/peer_mountbroker.py
+R: /usr/lib/cups/filter/foomatic-rip
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/native2ascii
+R: /usr/bin/xzdiff
+R: /opt/DbVisualizer/dbvis
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jlink
+R: /usr/bin/pic
+R: /usr/bin/i3
+R: /usr/bin/lwp-request
+R: /usr/share/hplip/firmware.py
+R: /usr/bin/pydoc3.6
+R: /usr/share/texlive/texmf-dist/scripts/exceltex/exceltex
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/rmid
+R: /usr/bin/convert-im6.q16
+R: /usr/bin/gcc-nm-4.9
+R: /usr/share/texlive/texmf-dist/scripts/texlive/fmtutil-sys.sh
+R: /usr/bin/ruby2.5
+R: /usr/share/texlive/texmf-dist/scripts/simpdftex/simpdftex
+R: /opt/Wire/wire-desktop
+R: /usr/share/texlive/texmf-dist/scripts/lwarp/lwarpmk.lua
+R: /usr/share/hplip/doctor.py
+R: /usr/bin/gnome-software
+R: /sbin/agetty
+R: /usr/local/lib/node_modules/s3-cli/cli.js
+R: /usr/bin/unattended-upgrade
+R: /usr/bin/python2.7
+R: /bin/ip
+R: /usr/lib/libreoffice/program/soffice
+R: /usr/bin/tclsh8.6
+R: /usr/bin/ps2ascii
+R: /usr/bin/ncursesw6-config
+R: /usr/bin/openipmicmd
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jstatd
+R: /usr/bin/wodim
+R: /usr/share/netplan/netplan.script
+R: /opt/Viewme/Viewme
+R: /usr/bin/openipmish
+R: /home/nickanderson/src/cpm/cpm/__main__.py
+R: /usr/bin/gedit
+R: /usr/share/texlive/texmf-dist/scripts/perltex/perltex.pl
+R: /usr/bin/geod
+R: /usr/bin/import-im6.q16
+R: /usr/lib/google-cloud-sdk/bin/git-credential-gcloud.sh
+R: /usr/bin/cpp-5
+R: /usr/bin/gimp-2.10
+R: /usr/share/texlive/texmf-dist/scripts/texlive/updmap-sys.sh
+R: /usr/share/texlive/texmf-dist/scripts/wordcount/wordcount.sh
+R: /usr/share/hplip/setup.py
+R: /usr/bin/x86_64-linux-gnu-dwp
+R: /usr/bin/updatedb.mlocate
+R: /usr/bin/systemd-mount
+R: /sbin/pccardctl
+R: /usr/bin/su-to-root
+R: /usr/bin/gcov-5
+R: /usr/bin/ncal
+R: /usr/share/texlive/texmf-dist/scripts/oberdiek/pdfatfi.pl
+R: /opt/Sqlectron/sqlectron
+R: /usr/bin/fakeroot-sysv
+R: /usr/bin/x86_64-linux-gnu-strings
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jshell
+R: /usr/bin/x86_64-linux-gnu-as
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/jsadebugd
+R: /usr/bin/bison.yacc
+R: /usr/share/texlive/texmf-dist/scripts/splitindex/splitindex.pl
+R: /usr/bin/gcc-ranlib-4.9
+R: /usr/bin/dvipng
+R: /usr/bin/x86_64-linux-gnu-cpp-7
+R: /usr/bin/newgrp
+R: /usr/bin/x86_64-linux-gnu-gcov-dump-6
+R: /usr/bin/uz
+R: /usr/bin/psicc
+R: /usr/bin/traceproto.db
+R: /usr/share/hplip/pkservice.py
+R: /usr/bin/wine-stable
+R: /usr/bin/bibtex.original
+R: /usr/share/hplip/plugin.py
+R: /usr/bin/x86_64-linux-gnu-strip
+R: /usr/share/hplip/timedate.py
+R: /usr/share/texlive/texmf-dist/scripts/texlive/updmap-user.sh
+R: /usr/share/texlive/texmf-dist/scripts/texlive/fmtutil.pl
+R: /var/cfengine/bin/lmmgr
+R: /usr/bin/python3.6m
+R: /usr/bin/desktop-file-install
+R: /usr/bin/avahi-browse
+R: /usr/bin/identify-im6.q16
+R: /bin/ping
+R: /usr/local/lib/node_modules/gitinspector/gitinspector.py
+R: /usr/bin/irb2.5
+R: /usr/lib/android-sdk/platform-tools/adb
+R: /usr/bin/automake-1.16
+R: /usr/local/lib/node_modules/github-email/github-email.sh
+R: /usr/share/texlive/texmf-dist/scripts/authorindex/authorindex
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/idlj
+R: /bin/ntfs-3g
+R: /usr/lib/x86_64-linux-gnu/glib-2.0/gio-querymodules
+R: /usr/bin/info
+R: /usr/share/texlive/texmf-dist/scripts/cachepic/cachepic.tlu
+R: /usr/local/lib/node_modules/tern/bin/tern
+R: /usr/lib/google-cloud-sdk/bin/gcloud
+R: /usr/sbin/cppw
+R: /usr/bin/gcov-4.9
+R: /bin/dash
+R: /usr/lib/firefox/firefox.sh
+R: /usr/sbin/update-grub
+R: /usr/bin/ri2.5
+R: /usr/lib/go-1.10/bin/gofmt
+R: /usr/share/dh-python/dh_pypy
+R: /usr/share/docutils/scripts/python2/rst2odt_prepstyles
+R: /bin/lesskey
+R: /usr/bin/ssh
+R: /usr/bin/dvilj4
+R: /usr/share/texlive/texmf-dist/scripts/texlive/tlmgr.pl
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jinfo
+R: /usr/local/lib/node_modules/keybase-installer/bin/main.js
+R: /usr/sbin/rmail
+R: /usr/share/hplip/info.py
+R: /usr/bin/run-on-ac
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/keytool
+R: /usr/share/hplip/query.py
+R: /usr/bin/gacutil
+R: /var/cfengine/bin/cf-monitord
+R: /usr/share/hplip/config_usb_printer.py
+R: /usr/bin/x86_64-linux-gnu-objdump
+R: /usr/share/texlive/texmf-dist/scripts/texlive/kpsewhere.sh
+R: /usr/bin/erb2.5
+R: /usr/bin/aplay
+R: /sbin/mkntfs
+R: /usr/bin/gs
+R: /usr/lib/cups/driver/driverless
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jdeps
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jmap
+R: /usr/share/texlive/texmf-dist/scripts/texdoctk/texdoctk.pl
+R: /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/policyeditor
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jps
+R: /bin/busybox
+R: /usr/bin/telnet.netkit
+R: /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/policytool
+R: /usr/share/texlive/texmf-dist/scripts/mkpic/mkpic
+R: /usr/bin/x86_64-linux-gnu-gcc-nm-6
+R: /usr/bin/al
+R: /usr/bin/mfluajit
+R: /usr/bin/w.procps
+R: /usr/bin/display-im6.q16
+R: /usr/bin/pnmtojpeg
+R: /bin/bzmore
+R: /usr/bin/ebrowse.emacs
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/jstack
+R: /usr/sbin/deluser
+R: /usr/sbin/aa-status
+R: /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+R: /usr/bin/skill
+R: /usr/bin/ncurses6-config
+R: /usr/bin/gconftool-2
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/mk4ht.pl
+R: /usr/share/texlive/texmf-dist/scripts/tex4ht/httexi.sh
+R: /usr/lib/openssh/gnome-ssh-askpass
+R: /usr/bin/filterdiff
+R: /usr/lib/unity-settings-daemon/unity-settings-daemon
+R: /var/cfengine/bin/cf-key
+R: /usr/lib/jvm/java-8-openjdk-amd64/bin/wsgen
+#+end_example
+
+
+#+BEGIN_EXAMPLE
+[root@hub vagrant]# cf-agent -KIf ./test.cf 
+ warning: '/sbin/./dmeventd' has permission 0555 - [should be 0755]
+ warning: '/sbin/./fsadm' has permission 0555 - [should be 0755]
+ warning: '/sbin/./lvmdump' has permission 0555 - [should be 0755]
+ warning: '/sbin/./blkdeactivate' has permission 0555 - [should be 0755]
+ warning: '/sbin/./lvmconf' has permission 0555 - [should be 0755]
+ warning: '/sbin/./lvm' has permission 0555 - [should be 0755]
+ warning: '/sbin/./lvmetad' has permission 0555 - [should be 0755]
+ warning: '/sbin/./vgimportclone' has permission 0555 - [should be 0755]
+ warning: '/sbin/.' has permission 0555 - [should be 0755]
+ warning: '/bin/.' has permission 0555 - [should be 0755]
+ warning: '/usr/sbin/.' has permission 0555 - [should be 0755]
+ warning: '/usr/bin/./sudo' has permission 4111 - [should be 4311]
+ warning: '/usr/bin/./wall' has permission 2555 - [should be 2755]
+ warning: '/usr/bin/./sudoreplay' has permission 0111 - [should be 0311]
+ warning: '/usr/bin/.' has permission 0555 - [should be 0755]
+#+END_EXAMPLE
+
+*** extras from development
+
+#+RESULTS:
+#+begin_example
+R: /home/nickanderson/bin
+R: /usr/local/sbin
+R: /usr/local/bin
+R: /usr/sbin
+R: /usr/bin
+R: /sbin
+R: /bin
+R: /usr/games
+R: /usr/local/games
+R: /snap/bin
+R: /var/cfengine/bin
+R: /usr/lib/jvm/java-8-oracle/bin
+R: /usr/lib/jvm/java-8-oracle/db/bin
+R: /usr/lib/jvm/java-8-oracle/jre/bin
+#+end_example
+
+#+BEGIN_EXAMPLE
+/tmp/test.cf:15:0: error: Undefined body all with type file_select
+   error: Policy failed validation with command '"/var/cfengine/bin/cf-promises" -c "/tmp/test.cf"'
+   error: Failsafe condition triggered. Interactive session detected, skipping failsafe.cf execution.
+   error: Error reading CFEngine policy. Exiting...
+root@nickanderson-ThinkPad-W550s:~# chmod 600 /tmp/test.cf 
+root@nickanderson-ThinkPad-W550s:~# cf-agent -KIf /tmp/test.cf 
+    info: Owner of '/usr/local/bin/./ngrok' was 1000, setting to 0
+    info: Group of '/usr/local/bin/./ngrok' was 1000, setting to 0
+    info: Owner of '/usr/local/bin/./git-credential-netrc' was 1000, setting to 0
+    info: Group of '/usr/local/bin/./git-credential-netrc' was 1000, setting to 0
+    info: Object '/usr/local/bin/./git-credential-netrc' had permission 0775, changed it to 0755
+ warning: NEW SETUID root PROGRAM '/usr/sbin/./pppd'
+    info: Group of '/usr/sbin/./pppd' was 30, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/sbin/./postdrop'
+    info: Group of '/usr/sbin/./postdrop' was 143, setting to 0
+    info: Object '/usr/sbin/./postdrop' had permission 2555, changed it to 2755
+ warning: NEW SETGID root PROGRAM '/usr/sbin/./postqueue'
+    info: Group of '/usr/sbin/./postqueue' was 143, setting to 0
+    info: Object '/usr/sbin/./postqueue' had permission 2555, changed it to 2755
+ warning: NEW SETUID root PROGRAM '/usr/bin/./pkexec'
+ warning: NEW SETUID root PROGRAM '/usr/bin/./sudo'
+ warning: NEW SETGID root PROGRAM '/usr/bin/./mlocate'
+    info: Group of '/usr/bin/./mlocate' was 119, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/bin/./bsd-write'
+    info: Group of '/usr/bin/./bsd-write' was 5, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/bin/./mail-unlock'
+    info: Group of '/usr/bin/./mail-unlock' was 8, setting to 0
+ warning: NEW SETUID root PROGRAM '/usr/bin/./gpasswd'
+    info: Object '/usr/bin/./AfterShot3X64' had permission 0775, changed it to 0755
+    info: Object '/usr/bin/./osqueryd' had permission 0775, changed it to 0755
+ warning: NEW SETGID root PROGRAM '/usr/bin/./expiry'
+    info: Group of '/usr/bin/./expiry' was 42, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/bin/./jwhois'
+    info: Group of '/usr/bin/./jwhois' was 137, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/bin/./dotlockfile'
+    info: Group of '/usr/bin/./dotlockfile' was 8, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/bin/./chage'
+    info: Group of '/usr/bin/./chage' was 42, setting to 0
+ warning: NEW SETUID root PROGRAM '/usr/bin/./traceroute6.iputils'
+    info: Object '/usr/bin/./atom' had permission 0775, changed it to 0755
+ warning: NEW SETUID root PROGRAM '/usr/bin/./arping'
+ warning: NEW SETGID root PROGRAM '/usr/bin/./ssh-agent'
+    info: Group of '/usr/bin/./ssh-agent' was 120, setting to 0
+ warning: NEW SETUID root PROGRAM '/usr/bin/./chsh'
+    info: Object '/usr/bin/./osqueryctl' had permission 0775, changed it to 0755
+ warning: NEW SETUID root PROGRAM '/usr/bin/./chfn'
+ warning: NEW SETUID root PROGRAM '/usr/bin/./newgrp'
+    info: Object '/usr/bin/./osqueryi' had permission 0775, changed it to 0755
+ warning: NEW SETGID root PROGRAM '/usr/bin/./wall'
+    info: Group of '/usr/bin/./wall' was 5, setting to 0
+ warning: NEW SETGID root PROGRAM '/usr/bin/./crontab'
+    info: Group of '/usr/bin/./crontab' was 109, setting to 0
+ warning: NEW SETUID root PROGRAM '/usr/bin/./passwd'
+ warning: NEW SETGID root PROGRAM '/sbin/./pam_extrausers_chkpwd'
+    info: Group of '/sbin/./pam_extrausers_chkpwd' was 42, setting to 0
+ warning: NEW SETGID root PROGRAM '/sbin/./unix_chkpwd'
+    info: Group of '/sbin/./unix_chkpwd' was 42, setting to 0
+ warning: NEW SETUID root PROGRAM '/sbin/./mount.nfs'
+ warning: NEW SETUID root PROGRAM '/bin/./umount'
+ warning: NEW SETUID root PROGRAM '/bin/./ping'
+ warning: NEW SETUID root PROGRAM '/bin/./ntfs-3g'
+ warning: NEW SETUID root PROGRAM '/bin/./mount'
+ warning: NEW SETUID root PROGRAM '/bin/./su'
+ warning: NEW SETUID root PROGRAM '/bin/./fusermount'
+#+END_EXAMPLE

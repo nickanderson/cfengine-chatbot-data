@@ -1,0 +1,30 @@
+:properties:
+:CFEngine_Example_Index: [[id:38277465-771a-4db4-983a-8dfd434b1aff][CFEngine_examples]]
+:CFEngine_Functions: [[id:57d00423-96bd-43e7-92e0-d1ee98f733be][Function: every()]] [[id:b91239e5-37fb-4d53-8335-9a38a16800ca][Function: join()]] 
+:ID:       c8513750-366a-490b-ab69-4550e38f1773
+:CREATED:  [2022-06-13 Mon 17:57]
+:end:
+#+title: Example illustrating every()
+
+#+begin_src cfengine3 :tangle every.cf
+  bundle agent __main__
+  {
+    vars:
+        "list" slist => { "one", "two" };
+  
+    reports:
+        "'.*o.*' matches every element of list ( $(with) )"
+          if => every('.*o.*', list ),
+          with => join( ", ", list );
+  
+        "'\d+' does not match every element of list ( $(with) )"
+          unless => every('\d+', list ),
+          with => join( ", ", list );
+  
+  }
+#+end_src
+
+#+RESULTS:
+: R: '.*o.*' matches every element of list ( one, two )
+: R: '\d+' does not match every element of list ( one, two )
+
