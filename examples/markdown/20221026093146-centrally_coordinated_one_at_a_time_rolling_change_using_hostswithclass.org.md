@@ -1,0 +1,881 @@
+This works ... UNTIL you get down to one host left then does not
+progress because of peerleader. For a serial (one at a time) thing,
+might as well drop `peerleader()` and just use `nth(readstringlist())`
+
+This implementation I consider mutually orchestrated.
+
+- The hub provides a list of candidates (which is based on a common
+  class reported by all hosts).
+- The hub provides a list of candidates who have yet to report
+  completion.
+- Agents use the list of candidates and knowledge about who has not
+  finished and self determine if it is their turn (it works because they
+  all use a common selection methodology, but note, this selection
+  process is still locally determined).
+
+:::: captioned-content
+::: caption
+Example Policy
+:::
+
+``` cfengine3
+bundle agent mpf_main
+{
+  classes:
+      # Report classes if your part of cluster one.
+      "cluster_one"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+      "cluster_one_reset"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+  methods:
+      "rolling_action_reset"
+        if => "cluster_one_reset";
+      "rolling_action"
+        if => "cluster_one_roll";
+}
+bundle agent rolling_action_reset
+{
+  methods:
+      "rm_rf" usebundle => rm_rf( "/tmp/hosts-reporting-class/" );
+      "rm_rf" usebundle => rm_rf( "/$(sys.statedir)/hosts-reporting-class/" );
+}
+bundle agent rolling_action
+{
+
+  vars:
+      "cluster_one_stages" slist => { "stage_one" };
+
+  methods:
+      "Host stage data for cluster_one"
+        usebundle => host_stage_data("cluster_one", @(cluster_one_stages) );
+
+      "Progress stages"
+        usebundle => progress_stages( "cluster_one", @(cluster_one_stages) );
+
+      "Inventory progress"
+        usebundle => inventory_stage_progress( "cluster_one", @(cluster_one_stages) );
+}
+
+bundle agent host_stage_data(name, stages)
+{
+  files:
+      # Hubs are responsible for generating lists of hosts
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/." create => "true";
+
+      "/tmp/hosts-reporting-class/$(name).dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+
+      "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_$(stages)_done", "name" )));
+
+
+
+    any::
+      "$(sys.statedir)/hosts-reporting-class/."
+        create => "true";
+
+      "$(sys.statedir)/hosts-reporting-class/$(name).dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name).dat",
+                                 $(sys.policy_hub) );
+
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                 $(sys.policy_hub) );
+
+      # Generate a list of hosts that have not completed each stage
+      # Here we let each host generate this list, perhaps we should just have the hub provide the list of hosts who have yet to finish.
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( difference( readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name).dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" ),
+                                        readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" )
+                      ),
+                            lex ));
+
+  reports:
+
+    enterprise_edition.policy_server::
+      "hosts-reporting-class $(name):$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+      "hosts-reporting-class $(name)_$(stages)_done:$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_$(stages)_done", "name" )));
+}
+
+bundle agent progress_stages( name, stages )
+{
+
+      # "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+      # list of hosts for each stage that have not completed
+
+  vars:
+      "lines[$(stages)]"
+        int => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      "peerleader[$(stages)]"
+        string => peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])" ),
+        if => isgreaterthan( 1, "$(lines[$(stages)])" );
+
+  classes:
+
+      "$(name)_$(stages)_count_greater_than_one"
+        expression => isgreaterthan( 1, countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" ) );
+
+  methods:
+      # If it's a 'sensical size' based on the number of lines
+      "Progress $(name) $(stage)"
+        usebundle => progress_stage( $(name), $(stages) ),
+        if => strcmp( "localhost", "$(peerleader[$(stages)])" ),
+        with => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      # If it's 'insensical size' to use peerleader based on the number of lines, use readlines
+      #      "Progress $(name) $(stage)"
+      #        usebundle => progress_stage( $(name), $(stages) ),
+      #        if => strcmp( "$(sys.fqhost)", nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", $(const.n), 1, inf), 0 );
+
+
+  reports:
+      "In $(this.bundle) $(name) $(stages)";
+      "$(lines[$(stages)]) lines in $(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat";
+      #"Peerleader $(name) $(stages): $(with)"
+      #  with => peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])");
+      # peerleader is picky on groupsizes. inf is invalid, so if you want to work with a singe host at a time you have to know the number of entries
+      # it warns on size of 1 as insensicle, might as well use readlines nth, peer functins for larger concurrency.
+
+}
+
+bundle agent progress_stage( name, stage )
+{
+  files:
+      "/tmp/$(stage).done" create => "true";
+
+}
+
+bundle agent inventory_stage_progress(name, stages)
+{
+  classes:
+      "$(name)_$(stages)_done"
+        scope => "namespace",
+        meta => { "report" },
+        expression => fileexists( "/tmp/$(stages).done" );
+
+  vars:
+      "stage_$(stages)_complete"
+        meta => { "inventory", "attribute_name=Stage $(stages) completed" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", filestat( "/tmp/$(stages).done", mtime ) ),
+        if => fileexists( "/tmp/$(stages).done" );
+
+
+      "now"
+        meta => { "inventory", "attribute_name=Time" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", now() );
+
+}
+
+bundle server access_hosthosts_by_name_access
+{
+  access:
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/"
+        admit => { "0.0.0.0/0" };
+}
+```
+::::
+
+For a serial (one at a time) thing, might as well drop peerleader() and
+just use nth(readstringlist())
+
+``` cfengine3
+bundle agent main
+{
+  classes:
+      # Report classes if your part of cluster one.
+      "cluster_one"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+      "cluster_one_roll"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+  methods:
+      "rolling_action_reset"
+        if => "cluster_one_reset";
+      "rolling_action"
+        if => "cluster_one_roll";
+}
+bundle agent rolling_action_reset
+{
+  methods:
+      "rm_rf" usebundle => rm_rf( "/tmp/hosts-reporting-class/" );
+      "rm_rf" usebundle => rm_rf( "/$(sys.statedir)/hosts-reporting-class/" );
+
+  files:
+      "/tmp/.*.done" delete => tidy;
+}
+bundle agent rolling_action
+{
+
+  vars:
+      "cluster_one_stages" slist => { "stage_one" };
+
+  methods:
+      "Host stage data for cluster_one"
+        usebundle => host_stage_data("cluster_one", @(cluster_one_stages) );
+
+      "Progress stages"
+        usebundle => progress_stages( "cluster_one", @(cluster_one_stages) );
+
+      "Inventory progress"
+        usebundle => inventory_stage_progress( "cluster_one", @(cluster_one_stages) );
+}
+
+bundle agent host_stage_data(name, stages)
+{
+  files:
+      # Hubs are responsible for generating lists of hosts
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/." create => "true";
+
+      "/tmp/hosts-reporting-class/$(name).dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+
+      "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_$(stages)_done", "name" )));
+
+
+
+    any::
+      "$(sys.statedir)/hosts-reporting-class/."
+        create => "true";
+
+      "$(sys.statedir)/hosts-reporting-class/$(name).dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name).dat",
+                                 $(sys.policy_hub) );
+
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                 $(sys.policy_hub) );
+
+      # Generate a list of hosts that have not completed each stage
+      # Here we let each host generate this list, perhaps we should just have the hub provide the list of hosts who have yet to finish.
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( difference( readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name).dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" ),
+                                        readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" )
+                      ),
+                            lex ));
+
+  reports:
+
+    enterprise_edition.policy_server::
+      "hosts-reporting-class $(name):$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+      "hosts-reporting-class $(name)_$(stages)_done:$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_$(stages)_done", "name" )));
+}
+
+bundle agent progress_stages( name, stages )
+{
+
+      # "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+      # list of hosts for each stage that have not completed
+
+  vars:
+      "lines[$(stages)]"
+        int => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      "peerleader[$(stages)]"
+        string => nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", "$(const.n)", 1, inf ), 0 );
+                  # nth( readstringlist( $(this.promise_filename), "", "$(const.n)", inf, inf ), 0 ),
+                  # peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])" );
+        # if => isgreaterthan( 1, "$(lines[$(stages)])" );
+
+  classes:
+
+      "$(name)_$(stages)_count_greater_than_one"
+        expression => isgreaterthan( 1, countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" ) );
+
+  methods:
+      # If it's a 'sensical size' based on the number of lines
+      "Progress $(name) $(stage)"
+        usebundle => progress_stage( $(name), $(stages) ),
+        #if => strcmp( "localhost", "$(peerleader[$(stages)])" ),
+        if => strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" ),
+        with => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      # If it's 'insensical size' to use peerleader based on the number of lines, use readlines
+      #      "Progress $(name) $(stage)"
+      #        usebundle => progress_stage( $(name), $(stages) ),
+      #        if => strcmp( "$(sys.fqhost)", nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", $(const.n), 1, inf), 0 );
+
+
+  reports:
+      "In $(this.bundle) $(name) $(stages) peerleader: $(peerleader[$(stages)])";
+      "$(lines[$(stages)]) lines in $(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat";
+      #"Peerleader $(name) $(stages): $(with)"
+      #  with => peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])");
+      # peerleader is picky on groupsizes. inf is invalid, so if you want to work with a singe host at a time you have to know the number of entries
+      # it warns on size of 1 as insensicle, might as well use readlines nth, peer functins for larger concurrency.
+
+}
+
+bundle agent progress_stage( name, stage )
+{
+  files:
+      "/tmp/$(stage).done" create => "true";
+
+}
+
+bundle agent inventory_stage_progress(name, stages)
+{
+  classes:
+      "$(name)_$(stages)_done"
+        scope => "namespace",
+        meta => { "report" },
+        expression => fileexists( "/tmp/$(stages).done" );
+
+  vars:
+      "stage_$(stages)_complete"
+        meta => { "inventory", "attribute_name=Stage $(stages) completed" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", filestat( "/tmp/$(stages).done", mtime ) ),
+        if => fileexists( "/tmp/$(stages).done" );
+
+
+      "now"
+        meta => { "inventory", "attribute_name=Time" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", now() );
+
+}
+
+bundle server access_hosthosts_by_name_access
+{
+  access:
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/"
+        admit => { "0.0.0.0/0" };
+}
+```
+
+Some tweaks
+
+``` cfengine3
+bundle agent main
+{
+  classes:
+      # Report classes if your part of cluster one.
+      "cluster_one"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+      "cluster_one_roll"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+  methods:
+      "rolling_action_reset"
+        if => "cluster_one_reset";
+      "rolling_action"
+        if => "cluster_one_roll";
+}
+bundle agent rolling_action_reset
+{
+  methods:
+      "rm_rf" usebundle => rm_rf( "/tmp/hosts-reporting-class/" );
+      "rm_rf" usebundle => rm_rf( "/$(sys.statedir)/hosts-reporting-class/" );
+
+  files:
+      "/tmp/.*.done" delete => tidy;
+}
+bundle agent rolling_action
+{
+
+  vars:
+      "cluster_one_stages" slist => { "stage_one" };
+
+  methods:
+      "Host stage data for cluster_one"
+        usebundle => host_stage_data("cluster_one", @(cluster_one_stages) );
+
+      "Progress stages"
+        usebundle => progress_stages_serially( "cluster_one", @(cluster_one_stages) );
+
+      "Inventory progress"
+        usebundle => inventory_stage_progress( "cluster_one", @(cluster_one_stages) );
+}
+
+bundle agent host_stage_data(name, stages)
+{
+  files:
+      # Hubs are responsible for generating lists of hosts
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/." create => "true";
+
+      "/tmp/hosts-reporting-class/$(name).dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+
+      "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_stage_$(stages)_done", "name" )));
+
+
+
+    any::
+      "$(sys.statedir)/hosts-reporting-class/."
+        create => "true";
+
+      "$(sys.statedir)/hosts-reporting-class/$(name).dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name).dat",
+                                 $(sys.policy_hub) );
+
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                 $(sys.policy_hub) );
+
+      # Generate a list of hosts that have not completed each stage
+      # Here we let each host generate this list, perhaps we should just have the hub provide the list of hosts who have yet to finish.
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( difference( readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name).dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" ),
+                                        readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" )
+                      ),
+                            lex ));
+
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages).done"
+        create => "true",
+        if => strcmp( "0", # if there are no hosts that have yet to finsih, the stage is complete.
+                      countlinesmatching(".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" ));
+
+  reports:
+
+    enterprise_edition.policy_server::
+      "hosts-reporting-class $(name):$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+      "hosts-reporting-class $(name)_$(stages)_done:$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_stage_$(stages)_done", "name" )));
+}
+
+bundle agent progress_stages_serially( name, stages )
+{
+
+      # "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+      # list of hosts for each stage that have not completed
+
+  vars:
+      "lines[$(stages)]"
+        int => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      # We call it peerleader, because we started by using peerleader function to get equally sized groups for doing N hosts in parallel. But peerleader just doesn't play nice when a file has less than the group size also it thinks group sizes of 1 are insensicle
+      "peerleader[$(stages)]"
+        string => nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", "$(const.n)", 1, inf ), 0 );
+                  # nth( readstringlist( $(this.promise_filename), "", "$(const.n)", inf, inf ), 0 ),
+                  # peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])" );
+        # if => isgreaterthan( 1, "$(lines[$(stages)])" );
+
+  classes:
+
+      "$(name)_$(stages)_count_greater_than_one"
+        expression => isgreaterthan( 1, countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" ) );
+
+  methods:
+      # if the fully qualified hostname is the current peerleader
+      # and if the stage is not done
+      "Progress $(name) $(stage)"
+        usebundle => progress_stage( $(name), $(stages) ),
+        #if => strcmp( "localhost", "$(peerleader[$(stages)])" ),
+        if => and(
+                   strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" ),
+                   not( fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done") )
+                  );
+       # with => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      # If it's 'insensical size' to use peerleader based on the number of lines, use readlines
+      #      "Progress $(name) $(stage)"
+      #        usebundle => progress_stage( $(name), $(stages) ),
+      #        if => strcmp( "$(sys.fqhost)", nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", $(const.n), 1, inf), 0 );
+
+
+  reports:
+      "In $(this.bundle) $(name) $(stages) peerleader: $(peerleader[$(stages)])";
+      "$(lines[$(stages)]) lines in $(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat";
+      "$(name) stage '$(stages)' does not seem to be done"
+        if => not( fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done") );
+      "Seems like it's my turn"
+        if => strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" );
+
+      "... but I think I am done ..."
+        if => and( strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" ),
+                   fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" ));
+
+      #"Peerleader $(name) $(stages): $(with)"
+      #  with => peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])");
+      # peerleader is picky on groupsizes. inf is invalid, so if you want to work with a singe host at a time you have to know the number of entries
+      # it warns on size of 1 as insensicle, might as well use readlines nth, peer functins for larger concurrency.
+
+}
+
+bundle agent progress_stage( name, stage )
+{
+  methods:
+      "$(name)_stage_$(stage)"
+        unless => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+      # Causes FATAL error
+      # "$(name)_stage_$(stage)"
+      #   usebundle => "$(name)_stage_$(stage)(name, stage)",
+      #   unless => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+
+  files:
+      "/tmp/$(stage).done" create => "true";
+
+}
+
+bundle agent cluster_one_stage_stage_one
+{
+
+  files:
+  # this is the file that signals this host has completed the stage successfully. base this on whatever state conditions you wish to detect.
+      "$(sys.statedir)/hosts-reporting-class/cluster_one_stage_stage_one.done"
+         create => "true";
+
+  reports:
+      "In $(this.bundle) ...";
+}
+
+
+bundle agent inventory_stage_progress(name, stages)
+{
+  classes:
+      # "$(name)_$(stages)_done"
+      #   scope => "namespace",
+      #   meta => { "report" },
+      #   expression => fileexists( "/tmp/$(stages).done" );
+
+      "$(name)_stage_$(stages)_done"
+        scope => "namespace",
+        meta => { "report" },
+        expression => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+  vars:
+      "stage_$(stages)_complete"
+        meta => { "inventory", "attribute_name=Stage $(stages) completed" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", filestat( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done", mtime ) ),
+        if => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+      "now"
+        meta => { "inventory", "attribute_name=Time" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", now() );
+}
+
+bundle server access_hosthosts_by_name_access
+{
+  access:
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/"
+        admit => { "0.0.0.0/0" };
+}
+```
+
+What about multiple, non-overlapping stages?
+
+:::: captioned-content
+::: caption
+Example Policy
+:::
+
+``` cfengine3
+bundle agent main
+{
+  classes:
+      # Report classes if your part of cluster one.
+      "cluster_one"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+      "cluster_one_roll"
+        scope => "namespace",
+        expression => "any",
+        meta => { "report" };
+
+  methods:
+      "rolling_action_reset"
+        if => "cluster_one_reset";
+      "rolling_action"
+        if => "cluster_one_roll";
+}
+bundle agent rolling_action_reset
+{
+  methods:
+      "rm_rf" usebundle => rm_rf( "/tmp/hosts-reporting-class/" );
+      "rm_rf" usebundle => rm_rf( "/$(sys.statedir)/hosts-reporting-class/" );
+
+  files:
+      "/tmp/.*.done" delete => tidy;
+}
+bundle agent rolling_action
+{
+
+  vars:
+      "cluster_one_stages" slist => { "stage_one" };
+
+  methods:
+      "Host stage data for cluster_one"
+        usebundle => host_stage_data("cluster_one", @(cluster_one_stages) );
+
+      "Progress stages"
+        usebundle => progress_stages_serially( "cluster_one", @(cluster_one_stages) );
+
+      "Inventory progress"
+        usebundle => inventory_stage_progress( "cluster_one", @(cluster_one_stages) );
+}
+
+bundle agent host_stage_data(name, stages)
+{
+  files:
+      # Hubs are responsible for generating lists of hosts
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/." create => "true";
+
+      "/tmp/hosts-reporting-class/$(name).dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+
+      "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_stage_$(stages)_done", "name" )));
+
+
+
+    any::
+      "$(sys.statedir)/hosts-reporting-class/."
+        create => "true";
+
+      "$(sys.statedir)/hosts-reporting-class/$(name).dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name).dat",
+                                 $(sys.policy_hub) );
+
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat"
+        copy_from => remote_dcp( "/tmp/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                 $(sys.policy_hub) );
+
+      # Generate a list of hosts that have not completed each stage
+      # Here we let each host generate this list, perhaps we should just have the hub provide the list of hosts who have yet to finish.
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+        content => "$(with)",
+        with => join( "$(const.n)",
+                      sort( difference( readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name).dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" ),
+                                        readstringlist( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_done.dat",
+                                                        "",
+                                                        "$(const.n)",
+                                                        "inf",
+                                                        "inf" )
+                      ),
+                            lex ));
+
+      "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages).done"
+        create => "true",
+        if => strcmp( "0", # if there are no hosts that have yet to finsih, the stage is complete.
+                      countlinesmatching(".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" ));
+
+  reports:
+
+    enterprise_edition.policy_server::
+      "hosts-reporting-class $(name):$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)", "name" )));
+
+      "hosts-reporting-class $(name)_$(stages)_done:$(const.n)$(with)"
+        with => join( "$(const.n)",
+                      sort( hostswithclass( "$(name)_stage_$(stages)_done", "name" )));
+}
+
+bundle agent progress_stages_serially( name, stages )
+{
+
+      # "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat"
+      # list of hosts for each stage that have not completed
+
+  vars:
+      "lines[$(stages)]"
+        int => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      # We call it peerleader, because we started by using peerleader function to get equally sized groups for doing N hosts in parallel. But peerleader just doesn't play nice when a file has less than the group size also it thinks group sizes of 1 are insensicle
+      "peerleader[$(stages)]"
+        string => nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", "$(const.n)", 1, inf ), 0 );
+                  # nth( readstringlist( $(this.promise_filename), "", "$(const.n)", inf, inf ), 0 ),
+                  # peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])" );
+        # if => isgreaterthan( 1, "$(lines[$(stages)])" );
+
+  classes:
+
+      "$(name)_$(stages)_count_greater_than_one"
+        expression => isgreaterthan( 1, countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" ) );
+
+  methods:
+      # if the fully qualified hostname is the current peerleader
+      # and if the stage is not done
+      "Progress $(name) $(stage)"
+        usebundle => progress_stage( $(name), $(stages) ),
+        #if => strcmp( "localhost", "$(peerleader[$(stages)])" ),
+        if => and(
+                   strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" ),
+                   not( fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done") )
+                  );
+       # with => countlinesmatching( ".*", "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" );
+
+      # If it's 'insensical size' to use peerleader based on the number of lines, use readlines
+      #      "Progress $(name) $(stage)"
+      #        usebundle => progress_stage( $(name), $(stages) ),
+      #        if => strcmp( "$(sys.fqhost)", nth( readstringlist("$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat", "", $(const.n), 1, inf), 0 );
+
+
+  reports:
+      "In $(this.bundle) $(name) $(stages) peerleader: $(peerleader[$(stages)])";
+      "$(lines[$(stages)]) lines in $(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat";
+      "$(name) stage '$(stages)' does not seem to be done"
+        if => not( fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done") );
+      "Seems like it's my turn"
+        if => strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" );
+
+      "... but I think I am done ..."
+        if => and( strcmp( "$(sys.fqhost)", "$(peerleader[$(stages)])" ),
+                   fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" ));
+
+      #"Peerleader $(name) $(stages): $(with)"
+      #  with => peerleader( "$(sys.statedir)/hosts-reporting-class/$(name)_$(stages)_NOT_done.dat" , "", "$(lines[$(stages)])");
+      # peerleader is picky on groupsizes. inf is invalid, so if you want to work with a singe host at a time you have to know the number of entries
+      # it warns on size of 1 as insensicle, might as well use readlines nth, peer functins for larger concurrency.
+
+}
+
+bundle agent progress_stage( name, stage )
+{
+  methods:
+      "$(name)_stage_$(stage)"
+        unless => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+      # Causes FATAL error
+      # "$(name)_stage_$(stage)"
+      #   usebundle => "$(name)_stage_$(stage)(name, stage)",
+      #   unless => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+
+  files:
+      "/tmp/$(stage).done" create => "true";
+
+}
+
+bundle agent cluster_one_stage_stage_one
+{
+
+  files:
+  # this is the file that signals this host has completed the stage successfully. base this on whatever state conditions you wish to detect.
+      "$(sys.statedir)/hosts-reporting-class/cluster_one_stage_stage_one.done"
+         create => "true";
+
+  reports:
+      "In $(this.bundle) ...";
+}
+
+
+bundle agent inventory_stage_progress(name, stages)
+{
+  classes:
+      # "$(name)_$(stages)_done"
+      #   scope => "namespace",
+      #   meta => { "report" },
+      #   expression => fileexists( "/tmp/$(stages).done" );
+
+      "$(name)_stage_$(stages)_done"
+        scope => "namespace",
+        meta => { "report" },
+        expression => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+  vars:
+      "stage_$(stages)_complete"
+        meta => { "inventory", "attribute_name=Stage $(stages) completed" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", filestat( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done", mtime ) ),
+        if => fileexists( "$(sys.statedir)/hosts-reporting-class/$(name)_stage_$(stages).done" );
+
+      "now"
+        meta => { "inventory", "attribute_name=Time" },
+        string => strftime( "localtime", "%Y-%m-%d %H:%M-%Z", now() );
+}
+
+bundle server access_hosthosts_by_name_access
+{
+  access:
+    enterprise_edition.policy_server::
+      "/tmp/hosts-reporting-class/"
+        admit => { "0.0.0.0/0" };
+}
+```
+::::

@@ -1,0 +1,80 @@
+:::: captioned-content
+::: caption
+Example Policy
+:::
+
+``` {.cfengine3 include-stdlib="t" log-level="info" exports="both" tangle="/tmp/example.cf"}
+bundle agent render_template_with_explicit_data_and_classes
+{
+  classes:
+
+      "My_Class" scope => "bundle", meta => { "findme" };
+
+  vars:
+
+      # Some data we want to use for rendering a mustache template
+      "_m" data => '{ "MyData": "explicit", "classes": { "MyClass": true }}';
+
+      # Get current datastate
+      "datastate" data => datastate();
+
+      # # pick out classes from the datastate
+      # "_c" data => mergedata( '{ }', "_s[classes]" );
+
+      # # reparent classes to be a top level key
+      # "_c1" data => mergedata( '{"classes": _c}' );
+
+      # # merge the explicit data on to classes leaving the data container that we
+      # # will ultimately hand to the templating engine.
+      # "_r" data => mergedata( _c1, _m );
+
+  reports:
+
+      # "Without merging in classes from datastate:$(const.n)$(with)"
+      #   with => string_mustache("My data is {{{MyData}}} and My_Class is {{#classes.My_Class}}defined{{/classes.My_Class}}{{^classes.My_Class}}not defined{{/classes.My_Class}}", _m );
+
+      # "With merging in classes from datastate:$(const.n)$(with)"
+      #   with => string_mustache("My data is {{{MyData}}} and My_Class is {{#classes.My_Class}}defined{{/classes.My_Class}}{{^classes.My_Class}}not defined{{/classes.My_Class}}", _r );
+
+     "The contents of _datastate: $(with)"
+        with => storejson( datastate() );
+
+     # "The contents of datastate: $(with)"
+     #    with => datastate();
+
+
+     #   "Found classes $(with)" with => join( ",", _found_c);
+
+     #  My_Class::
+     #    "My_Class is defined";
+     #  cfengine:: 
+     #  "The contents of _s: $(with)"
+     #    with => storejson( _s );
+
+      # "The contents of _r (explicit data merged with classes from datastate): $(with)"
+      #   with => storejson( _r );
+
+      # "The contents of _c1: $(with)"
+      #   with => storejson( _c1 );
+}
+
+bundle agent __main__
+{
+  methods:
+      "render_template_with_explicit_data_and_classes";
+}
+```
+::::
+
+``` example
+R: The contents of _datastate: $(with)
+R: The contents of _datastate: $(with)
+R: The contents of _datastate: $(with)
+```
+
+# References
+
+- [CFEngine Examples](id:38277465-771a-4db4-983a-8dfd434b1aff)
+- <https://cmdln.org/2018/10/19/using-classes-from-datastate-with-explicit-template_data-for-rendering-mustache-in-cfengine-3/>
+- [datastate()](id:97043090-b4f2-472a-8e8e-8e04826c24d5)
+- [storejson()](id:a4b316dc-e357-4292-a43e-3cac1a55b50c)
