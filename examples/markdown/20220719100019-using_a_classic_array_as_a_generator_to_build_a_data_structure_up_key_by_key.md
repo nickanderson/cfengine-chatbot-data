@@ -1,0 +1,45 @@
+:::: captioned-content
+::: caption
+Using classic array as a generator to build a data structure up key by
+key
+:::
+
+``` {.cfengine3 include-stdlib="t" log-level="info" exports="both" define="debug" tangle="using_a_classic_array_as_a_generator_to_build_a_data_structure_up_key_by_key.cf"}
+bundle agent __main__
+{
+  vars:
+      "data" data => parsejson('{
+  "vars": {
+    "myorg_test02_config_enabled": 0,
+    "myorg_postfix_config_enabled": 0,
+    "myorg_sshd_config_enabled": 1
+  }
+}');
+
+      # Generate a classic array by iterating over keys and defining them based on the criteria
+      "policy_name_keys" slist => getindices("data[vars]");             # Get iterator
+      "policy_name_enabled[$(policy_name_keys)]"                        # Build array if criteria matches
+        string => "$(data[vars][$(policy_name_keys)])",
+        if => strcmp( "1", "$(data[vars][$(policy_name_keys)])");
+      "policy_names_enabled" slist => getindices( policy_name_enabled ); # Get consolidated list of enabled
+
+  methods:
+      "any" usebundle => _show_policy_enabled("$(this.bundle)", @(policy_names_enabled) );
+
+  reports:
+    (DEBUG|debug)::
+      "$(this.bundle):$(policy_names_enabled):$(data[vars][$(policy_names_enabled)])";
+}
+bundle agent _show_policy_enabled(id, list)
+{
+  reports:
+    (DEBUG|debug)::
+      "$(this.bundle):$(list)=$($(id).data[vars][$(list)])";
+}
+```
+::::
+
+``` example
+R: _show_policy_enabled:myorg_sshd_config_enabled=1
+R: main:myorg_sshd_config_enabled:1
+```

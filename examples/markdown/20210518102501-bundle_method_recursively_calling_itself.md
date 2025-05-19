@@ -1,0 +1,59 @@
+:::: captioned-content
+::: caption
+Bundle/method recursively calling itself
+:::
+
+``` {.cfengine3 include-stdlib="t" log-level="info" exports="both"}
+bundle agent __main__
+{
+  vars:
+      "start" string => "1";
+      "end" string => "10";
+  methods:
+      "recur"
+        usebundle => recursion("$(start)", "$(end)");
+}
+bundle agent recursion(a, b)
+{
+  vars:
+      "x" string => format( "%d", eval("$(a)+1", "math", "infix"));
+      "y" string => "$(b)";
+
+  methods:
+      "recur"
+        depends_on => { "report_current_a_$(a)_b_$(b)" },
+        handle => "a_is_$(a)_b_is_$(b)_x_is_$(x)_y_is_$(y)", 
+        usebundle => recursion("$(x)", "$(y)"),
+        if => or( islessthan("$(x)", "$(y)"),
+                  strcmp( "$(x)", "$(y)" ));
+
+  reports:
+      "$(a)/$(b)"
+        handle => "report_current_a_$(a)_b_$(b)",
+        if => and( isvariable( "a" ), isvariable( "b" ));
+
+}
+```
+::::
+
+``` example
+R: 1/10
+R: 2/10
+R: 3/10
+R: 4/10
+R: 5/10
+R: 6/10
+R: 7/10
+R: 8/10
+R: 9/10
+R: 10/10
+```
+
+# References
+
+- [CFEngine Examples](id:38277465-771a-4db4-983a-8dfd434b1aff)
+- [Function: isvariable()](id:02720c30-efe9-4bb8-b360-fbf79886a13d)
+- [Function: and()](id:429aca38-2b9e-42f4-b8cc-280152b7a126)
+- [Function: strcmp()](id:a136eeee-4d49-4d15-afb7-0e8c1104d488)
+- [Function: islessthan()](id:20975dc3-bf18-4b67-a0f9-a0717f044102)
+- [Function: or()](id:c4e112eb-4107-47b9-a1f5-ad1a3af2d3e0)

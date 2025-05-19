@@ -1,0 +1,50 @@
+CLOSED: \[2018-11-21 Wed 18:07\]
+
+Well, owners in perms bodies do take lists, I wonder if that can be used
+for this use case.
+
+<https://docs.cfengine.com/docs/3.12/reference-promise-types-files.html#owners>
+
+List of acceptable owners or user ids, first is change target
+
+The first user is the reference value that CFEngine will set the file to
+if none of the list items matches the true state of the file. The
+reserved word none may be used to match files that are not owned by a
+registered user.
+
+``` cfengine3
+bundle agent main
+{
+  vars:
+
+    "mode" string => "warn";
+
+    "script_executed_from_cron" string => "/tmp/example.sh";
+
+    # A list of users that we are OK with owning the file. Basically, this would
+    # be the user whos crontab we are investigating
+    "candidates" slist => {
+                            "USERNAME",
+                          };
+
+  files:
+    "$(script_executed_from_cron)"
+      perms => root_or_preffered_owner_only_writeable( @(candidates) ),
+      action => warn_or_fix( $(mode) );
+
+}
+body perms root_or_preffered_owner_only_writeable( acceptable_owners )
+{
+    owners => { "root", @(acceptable_owners) }; # if the file isnt owned by root
+                                                # or one of the users listed in
+                                                # acceptable_owners, then it
+                                                # will be reset to the first
+                                                # listed user ('root')
+
+    mode => "u+w,g-w,o-w"; # user writeable, group and other not writeable
+}
+body action warn_or_fix( mode )
+{
+    action_policy => "$(mode)";
+}
+```

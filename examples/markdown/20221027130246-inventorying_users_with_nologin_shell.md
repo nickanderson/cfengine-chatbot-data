@@ -1,0 +1,134 @@
+:::: captioned-content
+::: caption
+Example Policy
+:::
+
+``` {.cfengine3 include-stdlib="t" log-level="info" exports="both" tangle="inventorying_users_with_nologin_shell.cf" extra-opts="--show-evaluated-vars=main\\\\."}
+bundle agent __main__
+{
+  vars:
+    "users" slist => getusers("", "");
+    # There is no way to inspect a data-conatienr returned by a function on the fly
+    "nologin_shell[$(users)]"
+      string => "$(users)",
+      meta => { "inventory", "attribtue_name=Users with nologin shell" },
+      comment => "has shell matching .*nologin.*",
+      if => some( ".*nologin.*", getvalues( getuserinfo( $(users) ) ) );
+
+
+}
+```
+::::
+
+``` example
+Variable name                            Variable value                                               Meta tags                                Comment
+default:main.nologin_shell[_apt]         _apt                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[_flatpak]     _flatpak                                                     source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[_rpc]         _rpc                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[avahi-autoipd] avahi-autoipd                                                source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[avahi]        avahi                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[backup]       backup                                                       source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[bin]          bin                                                          source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[colord]       colord                                                       source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[cups-pk-helper] cups-pk-helper                                               source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[daemon]       daemon                                                       source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[dnsmasq]      dnsmasq                                                      source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[games]        games                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[geoclue]      geoclue                                                      source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[gnats]        gnats                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[irc]          irc                                                          source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[kernoops]     kernoops                                                     source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[list]         list                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[lp]           lp                                                           source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[mail]         mail                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[man]          man                                                          source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[messagebus]   messagebus                                                   source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[news]         news                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[nm-openvpn]   nm-openvpn                                                   source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[nobody]       nobody                                                       source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[nvidia-persistenced] nvidia-persistenced                                          source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[postfix]      postfix                                                      source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[proxy]        proxy                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[pulse]        pulse                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[rtkit]        rtkit                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[saned]        saned                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[sshd]         sshd                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[sssd]         sssd                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[statd]        statd                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[sys]          sys                                                          source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[syslog]       syslog                                                       source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[systemd-network] systemd-network                                              source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[systemd-resolve] systemd-resolve                                              source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[systemd-timesync] systemd-timesync                                             source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[tcpdump]      tcpdump                                                      source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[usbmux]       usbmux                                                       source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[uucp]         uucp                                                         source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[uuidd]        uuidd                                                        source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.nologin_shell[www-data]     www-data                                                     source=promise,inventory,attribtue_name=Users with nologin shell has shell matching .*nologin.*
+default:main.users                        {"root","daemon","bin","sys","sync","games","man","lp","mail","news","uucp","proxy","www-data","backup","list","irc","gnats","nobody","systemd-network","systemd-resolve","messagebus","systemd-timesync","syslog","_apt","tss","uuidd","tcpdump","avahi-autoipd","usbmux","dnsmasq","kernoops","avahi","cups-pk-helper","rtkit","whoopsie","saned","colord","sddm","geoclue","pulse","hplip","nickanderson","nvidia-persistenced","_flatpak","sshd","mysql","postfix","_rpc","statd","nm-openvpn","clamav","sssd"} source=promise
+```
+
+Using `regline()`:
+
+``` {.cfengine3 include-stdlib="t" log-level="info" exports="both" tangle="inventorying_users_with_nologin_shell.cf" extra-opts="yes"}
+bundle agent __main__
+{
+  vars:
+    "d" data => data_readstringarray("/etc/passwd", "^\s+#.*", ":", inf, inf);
+    "users" slist => getindices( d );
+    "nologin[$(users)]"
+      string => "$(users)",
+      meta => { "inventory", "attribtue_name=Users with nologin shell" },
+      if => regline( "^$(users):.*:.*:.*:.*:.*:.*nologin", "/etc/passwd" );
+
+  reports:
+      "$(nologin[$(users)]) has nologin shell";
+
+}
+```
+
+``` example
+R: daemon has nologin shell
+R: bin has nologin shell
+R: sys has nologin shell
+R: games has nologin shell
+R: man has nologin shell
+R: lp has nologin shell
+R: mail has nologin shell
+R: news has nologin shell
+R: uucp has nologin shell
+R: proxy has nologin shell
+R: www-data has nologin shell
+R: backup has nologin shell
+R: list has nologin shell
+R: irc has nologin shell
+R: gnats has nologin shell
+R: nobody has nologin shell
+R: systemd-network has nologin shell
+R: systemd-resolve has nologin shell
+R: messagebus has nologin shell
+R: systemd-timesync has nologin shell
+R: syslog has nologin shell
+R: _apt has nologin shell
+R: uuidd has nologin shell
+R: tcpdump has nologin shell
+R: avahi-autoipd has nologin shell
+R: usbmux has nologin shell
+R: dnsmasq has nologin shell
+R: kernoops has nologin shell
+R: avahi has nologin shell
+R: cups-pk-helper has nologin shell
+R: rtkit has nologin shell
+R: saned has nologin shell
+R: colord has nologin shell
+R: geoclue has nologin shell
+R: pulse has nologin shell
+R: nvidia-persistenced has nologin shell
+R: _flatpak has nologin shell
+R: sshd has nologin shell
+R: postfix has nologin shell
+R: _rpc has nologin shell
+R: statd has nologin shell
+R: nm-openvpn has nologin shell
+R: sssd has nologin shell
+```
